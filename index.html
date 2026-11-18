@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kviz arena</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+:root{--bg:#3b1a78;--bg2:#24104d;--card:#fff;--ink:#1d1630;--muted:#6b6385;--line:#e4e0ee;
+--c0:#e21b3c;--c1:#1368ce;--c2:#d89e00;--c3:#26890c;--c4:#864cbf;--c5:#0a8f8f;--ok:#26890c;--bad:#e21b3c;--accent:#ffb400}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:linear-gradient(160deg,var(--bg),var(--bg2));color:#fff;min-height:100%;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+#app{min-height:100vh}
+.btn{border:0;border-radius:10px;padding:.65em 1.1em;font-weight:700;background:#fff;color:var(--ink);box-shadow:0 4px 0 rgba(0,0,0,.25);transition:transform .05s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--accent);color:#2a1700}
+.btn.green{background:var(--ok);color:#fff}
+.btn.dark{background:#2b2240;color:#fff}
+.btn.ghost{background:transparent;color:inherit;box-shadow:none;border:2px dashed currentColor;opacity:.8}
+.btn.small{padding:.4em .7em;font-size:.88em}
+.btn.big{font-size:1.25em;padding:.8em 1.4em}
+.btn.danger{background:#fff;color:var(--bad)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px}
+.logo{font-weight:900;font-size:1.6em;letter-spacing:.5px;display:flex;align-items:center;gap:.3em}
+.logo small{font-weight:600;font-size:.5em;opacity:.8}
+.spacer{flex:1}
+select.lang{border-radius:8px;border:0;padding:.4em;font-weight:600}
+.hero{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 26px}
+.card{background:var(--card);color:var(--ink);border-radius:14px;padding:16px;box-shadow:0 6px 0 rgba(0,0,0,.18)}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.qcard h3{margin:0 0 4px;font-size:1.15em;word-break:break-word}
+.qcard .meta{color:var(--muted);font-size:.9em;margin-bottom:10px}
+.qcard .icons{font-size:1.1em;margin-bottom:12px;letter-spacing:2px}
+.qcard .row{display:flex;gap:6px;flex-wrap:wrap}
+.qcard .row .btn{box-shadow:none;border:1px solid var(--line);background:#f6f4fb}
+.qcard .row .btn.primary{background:var(--accent);border-color:transparent}
+.qcard .row .btn.green{background:var(--ok);border-color:transparent;color:#fff}
+.note{opacity:.8;font-size:.92em}
+h2.sec{margin:8px 0 14px}
+/* toast & modal */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:.7em 1.2em;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:90vw;text-align:center}
+#toast.show{opacity:.95}
+.modal-bg{position:fixed;inset:0;background:rgba(10,5,25,.6);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:#fff;color:var(--ink);border-radius:16px;padding:20px;width:min(620px,100%);max-height:90vh;overflow:auto}
+.modal h3{margin-top:0}
+.typepick{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.typepick button{border:2px solid var(--line);background:#faf9fd;border-radius:12px;padding:12px;text-align:left;color:var(--ink)}
+.typepick button:hover{border-color:var(--bg)}
+.typepick b{display:block;margin:4px 0 2px}
+.typepick span.d{font-size:.82em;color:var(--muted)}
+.typepick .ic{font-size:1.6em}
+label.chkrow{display:flex;gap:10px;align-items:center;margin:10px 0}
+label.chkrow input{width:20px;height:20px}
+/* editor */
+.ed{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
+.ed-top{grid-column:1/3;display:flex;gap:10px;align-items:center;padding:10px 16px;background:rgba(0,0,0,.25);flex-wrap:wrap}
+.ed-top input.title{flex:1;min-width:180px;border:0;border-radius:8px;padding:.55em .8em;font-weight:700;font-size:1.05em}
+.ed-list{background:rgba(0,0,0,.15);padding:12px;overflow:auto;max-height:calc(100vh - 60px)}
+.ed-item{background:rgba(255,255,255,.1);border:2px solid transparent;border-radius:10px;padding:8px 10px;margin-bottom:8px;cursor:pointer;display:flex;gap:8px;align-items:flex-start}
+.ed-item.sel{background:#fff;color:var(--ink);border-color:var(--accent)}
+.ed-item .n{font-weight:800;min-width:1.6em}
+.ed-item .tx{flex:1;font-size:.92em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.ed-item .warn{color:var(--accent)}
+.ed-item.sel .warn{color:#c47a00}
+.ed-main{padding:18px;overflow:auto;max-height:calc(100vh - 60px)}
+.ed-main .card{max-width:900px;margin:0 auto}
+.field{margin-bottom:14px}
+.field>label,.flabel{display:block;font-weight:700;font-size:.9em;margin-bottom:5px;color:var(--muted)}
+.field input[type=text],.field input[type=number],.field textarea,.field select,.inp{width:100%;border:2px solid var(--line);border-radius:9px;padding:.55em .7em;color:var(--ink);background:#fff}
+.field textarea.qtext{font-size:1.25em;font-weight:600;text-align:center;min-height:80px;resize:vertical}
+.frow{display:flex;gap:12px;flex-wrap:wrap}
+.frow>.field{flex:1;min-width:120px}
+.problem{background:#fff4d6;color:#7a4b00;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-weight:600;font-size:.92em}
+.imgbox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.imgbox img{max-height:160px;max-width:280px;border-radius:8px;border:1px solid var(--line)}
+.ans-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.ans-ed{display:flex;align-items:center;gap:8px;border-radius:10px;padding:8px;color:#fff}
+.ans-ed input{flex:1;border:0;border-radius:7px;padding:.55em;min-width:0}
+.ans-ed .chk{width:36px;height:36px;border-radius:50%;border:3px solid #fff;background:transparent;color:transparent;font-weight:900;flex:none}
+.ans-ed .chk.on{background:var(--ok);color:#fff}
+.ans-ed .x,.listrow .x{background:transparent;border:0;color:inherit;font-size:1.4em;line-height:1;padding:0 4px;flex:none}
+.shape{font-size:1.3em;width:1.4em;text-align:center;flex:none}
+.c0{background:var(--c0)}.c1{background:var(--c1)}.c2{background:var(--c2)}.c3{background:var(--c3)}.c4{background:var(--c4)}.c5{background:var(--c5)}
+.listrow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.listrow .num{font-weight:800;width:1.6em;text-align:right;color:var(--muted)}
+.listrow input{flex:1}
+.tfpick{display:flex;gap:12px}
+.tfpick button{flex:1;border:4px solid transparent;border-radius:12px;padding:18px;color:#fff;font-weight:800;font-size:1.2em;opacity:.55}
+.tfpick button.on{opacity:1;border-color:#111}
+.hint{font-size:.85em;color:var(--muted);margin:4px 0 10px}
+.pinedit{position:relative;display:inline-block;max-width:100%;cursor:crosshair;user-select:none}
+.pinedit img{display:block;max-width:100%;max-height:420px;border-radius:8px}
+.pinzone{position:absolute;aspect-ratio:1;border-radius:50%;border:4px dashed #26890c;background:rgba(255,255,255,.18);box-shadow:0 0 0 2px #fff;transform:translate(-50%,-50%);pointer-events:none}
+.qactions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.qactions .btn{box-shadow:none;border:1px solid var(--line);background:#f6f4fb}
+@media (max-width:760px){.ed{grid-template-columns:1fr}.ed-top{grid-column:1}.ed-list{max-height:none;display:flex;overflow-x:auto;gap:8px}.ed-item{min-width:170px;margin:0}.ed-main{max-height:none}.ans-grid{grid-template-columns:1fr}}
+/* host */
+.host{min-height:100vh;display:flex;flex-direction:column}
+.hbar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:rgba(0,0,0,.25);font-weight:700}
+.lobby-top{display:flex;justify-content:center;gap:28px;align-items:center;flex-wrap:wrap;padding:24px}
+.joininfo{background:#fff;color:var(--ink);border-radius:16px;padding:18px 30px;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.joininfo .url{font-size:1.3em;font-weight:800;word-break:break-all}
+.joininfo .pinlabel{margin-top:10px;font-weight:700;color:var(--muted)}
+.joininfo .pin{font-size:clamp(3em,9vw,6em);font-weight:900;letter-spacing:.06em;line-height:1}
+.qr{background:#fff;border-radius:16px;padding:10px;line-height:0}
+.qr svg{width:180px;height:180px}
+.lobby-mid{display:flex;align-items:center;gap:16px;padding:0 24px}
+.lobby-mid h2{flex:1;text-align:center;margin:0}
+.count{background:rgba(0,0,0,.3);border-radius:10px;padding:.5em 1em;font-weight:800;font-size:1.2em}
+.names{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:26px}
+.names .nm{background:#fff;color:var(--ink);font-weight:800;border-radius:10px;padding:.5em 1em;font-size:1.25em;border:0;animation:pop .3s}
+.names .nm.off{opacity:.45}
+.names .nm:hover{text-decoration:line-through}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.hq{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
+.hq-text{background:#fff;color:var(--ink);border-radius:12px;padding:16px 22px;text-align:center;font-size:clamp(1.3em,3vw,2.2em);font-weight:800;word-break:break-word}
+.hq-mid{flex:1;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:160px}
+.hq-mid .side{width:130px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:800}
+.timer{width:110px;height:110px;border-radius:50%;background:var(--c4);display:flex;align-items:center;justify-content:center;font-size:2.8em;font-weight:900}
+.answered{font-size:2.6em;line-height:1}
+.hq-img{flex:1;display:flex;justify-content:center;align-items:center}
+.hq-img img{max-width:100%;max-height:42vh;border-radius:10px;background:#fff}
+.hq-hint{flex:1;text-align:center;font-size:1.6em;font-weight:800}
+.hq-hint .big{font-size:3em;display:block}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{border:0;border-radius:10px;color:#fff;font-weight:800;font-size:clamp(1em,2.4vw,1.6em);padding:18px;display:flex;align-items:center;gap:12px;text-align:left;min-height:90px;box-shadow:0 5px 0 rgba(0,0,0,.25);word-break:break-word}
+.tile .shape{font-size:1.5em}
+.tile.dim{opacity:.3}
+.tile.sel{outline:6px solid #fff;outline-offset:-6px}
+.tile .ok{margin-left:auto;font-size:1.4em}
+.ready{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:20px}
+.ready .qt{font-size:clamp(1.6em,4vw,3em);font-weight:900;max-width:1000px}
+.ready .pill{background:#fff;color:var(--ink);border-radius:30px;padding:.4em 1.2em;font-weight:800}
+.bar3{width:min(600px,80vw);height:12px;border-radius:6px;background:rgba(255,255,255,.2);overflow:hidden}
+.bar3 i{display:block;height:100%;background:var(--accent);animation:fill 3s linear forwards}
+@keyframes fill{from{width:0}to{width:100%}}
+.reveal-body{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:16px;padding:10px;min-height:260px}
+.col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:min(150px,22vw);height:38vh}
+.col .cnt{font-weight:900;font-size:1.6em;margin-bottom:4px}
+.col .b{width:100%;border-radius:8px 8px 0 0;min-height:8px;transition:height .6s}
+.col .lab{width:100%;border-radius:0 0 8px 8px;padding:6px;text-align:center;font-weight:800;font-size:1.1em}
+.summary{text-align:center;font-weight:800;font-size:1.3em}
+.cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 18px;background:#fff;border-radius:14px;padding:24px;max-width:1000px;margin:0 auto;align-self:center}
+.cloud span{font-weight:800;line-height:1.1}
+.opengrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;width:100%;align-self:flex-start;max-height:55vh;overflow:auto}
+.opengrid div{background:#fff;color:var(--ink);border-radius:10px;padding:12px;font-weight:600;word-break:break-word}
+.typelist{background:#fff;color:var(--ink);border-radius:14px;padding:12px 20px;min-width:min(520px,90vw);align-self:center}
+.typelist .r{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:1.2em}
+.typelist .r.ok{color:var(--ok)}
+.nline{position:relative;width:min(900px,90vw);height:150px;align-self:center}
+.nline .axis{position:absolute;left:0;right:0;top:100px;height:6px;background:#fff;border-radius:3px}
+.nline .band{position:absolute;top:84px;height:38px;background:rgba(38,137,12,.65);border:2px solid #7cff5c;border-radius:6px;transform:translateX(-50%);min-width:6px}
+.nline .dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #fff;transform:translate(-50%,-50%)}
+.nline .tk{position:absolute;top:116px;transform:translateX(-50%);font-weight:800}
+.nline .cv{position:absolute;top:0;transform:translateX(-50%);background:var(--ok);padding:.3em .7em;border-radius:8px;font-weight:900;font-size:1.3em;white-space:nowrap}
+.orderlist{background:#fff;color:var(--ink);border-radius:14px;padding:12px 20px;min-width:min(520px,90vw);align-self:center;font-size:1.25em;font-weight:700}
+.orderlist div{padding:6px 0;border-bottom:1px solid var(--line)}
+.pinview{position:relative;display:inline-block;align-self:center}
+.pinview img{display:block;max-width:90vw;max-height:52vh;border-radius:10px}
+.pinview .dot{position:absolute;width:18px;height:18px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%)}
+.board{width:min(760px,94vw);margin:20px auto;display:flex;flex-direction:column;gap:10px}
+.board .r{display:flex;align-items:center;gap:14px;background:#fff;color:var(--ink);border-radius:10px;padding:12px 18px;font-weight:800;font-size:1.35em;animation:pop .3s}
+.board .r .rk{width:1.6em}
+.board .r .nm{flex:1;word-break:break-word}
+.board .r .gain{color:var(--ok);font-size:.75em}
+.board .r.first{background:var(--accent)}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;padding:20px;min-height:46vh}
+.pod{display:flex;flex-direction:column;align-items:center;width:min(220px,28vw);animation:rise .8s ease-out both}
+.pod .nm{font-weight:900;font-size:1.4em;text-align:center;margin-bottom:8px;word-break:break-word}
+.pod .blk{width:100%;border-radius:10px 10px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:12px;font-weight:900;font-size:2.4em}
+.pod .blk small{font-size:.4em}
+.pod.p1 .blk{height:34vh;background:var(--accent);color:#3a2300}
+.pod.p2 .blk{height:24vh;background:#d9d9e3;color:#333}
+.pod.p3 .blk{height:17vh;background:#d08a4b;color:#3a1d00}
+.pod.p1{animation-delay:1.6s}.pod.p2{animation-delay:.9s}.pod.p3{animation-delay:.2s}
+@keyframes rise{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+table.res{width:100%;border-collapse:collapse;color:var(--ink)}
+table.res th,table.res td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+.hfoot{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px}
+.slideview{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;text-align:center}
+.slideview .st{font-size:clamp(1.8em,4vw,3.2em);font-weight:900}
+.slideview .sb{font-size:clamp(1.1em,2.2vw,1.7em);max-width:1000px;white-space:pre-wrap;background:#fff;color:var(--ink);border-radius:14px;padding:18px 26px}
+.slideview .sb:empty{display:none}
+.slideview img{max-width:90vw;max-height:45vh;border-radius:10px}
+/* player */
+.pl{min-height:100vh;display:flex;flex-direction:column}
+.pbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,.3);font-weight:800}
+.pbar .sc{background:#fff;color:var(--ink);border-radius:8px;padding:.2em .7em}
+.tbar{height:8px;background:rgba(255,255,255,.2)}
+.tbar i{display:block;height:100%;background:var(--accent);transition:width .25s linear}
+.pbody{flex:1;display:flex;flex-direction:column;padding:14px;gap:14px}
+.pq{background:#fff;color:var(--ink);border-radius:12px;padding:12px 16px;text-align:center;font-weight:800;font-size:1.2em;word-break:break-word}
+.pimg{text-align:center}.pimg img{max-width:100%;max-height:30vh;border-radius:10px;background:#fff}
+.pbody .tiles{flex:1}
+.pbody .tile{min-height:80px}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:20px}
+.center h1{margin:0;font-size:2.2em}
+.center .emo{font-size:4.5em;line-height:1}
+.joinbox{background:#fff;color:var(--ink);border-radius:16px;padding:22px;width:min(380px,92vw);display:flex;flex-direction:column;gap:12px;box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.joinbox input{border:2px solid var(--line);border-radius:10px;padding:.7em;font-size:1.3em;font-weight:800;text-align:center}
+.fb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px}
+.fb.good{background:var(--ok)}.fb.badc{background:var(--bad)}.fb.neutral{background:transparent}
+.fb h1{font-size:2.6em;margin:0}
+.fb .gain{background:rgba(0,0,0,.25);border-radius:10px;padding:.4em 1.2em;font-size:1.6em;font-weight:900}
+.fb .corr{background:rgba(255,255,255,.95);color:var(--ink);border-radius:10px;padding:10px 16px;font-weight:700;max-width:90vw;word-break:break-word}
+.bigin{width:100%;border:0;border-radius:12px;padding:.8em;font-size:1.4em;font-weight:700;text-align:center;color:var(--ink)}
+textarea.bigin{min-height:140px;text-align:left;font-size:1.15em}
+.slval{text-align:center;font-size:3em;font-weight:900}
+input[type=range].bigr{width:100%;height:44px;accent-color:var(--accent)}
+.slminmax{display:flex;justify-content:space-between;font-weight:700;opacity:.85}
+.order{display:flex;flex-direction:column;gap:8px}
+.ord-item{display:flex;align-items:center;gap:10px;border-radius:10px;padding:10px;color:#fff;font-weight:800;font-size:1.1em}
+.ord-item .num{background:rgba(0,0,0,.25);border-radius:50%;width:1.8em;height:1.8em;display:flex;align-items:center;justify-content:center;flex:none}
+.ord-item .txt{flex:1;word-break:break-word}
+.ord-item button{border:0;border-radius:8px;width:44px;height:40px;font-size:1.1em;background:rgba(255,255,255,.9)}
+.ord-item button:disabled{opacity:.3}
+.pinwrap{position:relative;align-self:center;line-height:0;user-select:none;touch-action:manipulation}
+.pinwrap img{max-width:100%;max-height:55vh;border-radius:10px;display:block}
+.pinmark{position:absolute;font-size:34px;line-height:1;transform:translate(-50%,-100%);pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.submitrow{display:flex;justify-content:center}
+.spinner{width:56px;height:56px;border-radius:50%;border:6px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+footer.f{text-align:center;opacity:.6;font-size:.85em;padding:20px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<input type="file" id="filein" hidden>
+<script>
+"use strict";
+/* ================= i18n ================= */
+const I18N = {
+sr:{appName:"Kviz arena",tagline:"Kviz za učionicu – svi tipovi pitanja otključani",join:"Pridruži se igri",newQuiz:"Novi kviz",import:"Uvezi kviz",myQuizzes:"Moji kvizovi",noQuizzes:"Još nema kvizova. Napravi prvi!",questionsN:"Pitanja: {n}",host:"Pokreni igru",practice:"Vežbaj sam",edit:"Uredi",duplicate:"Dupliraj",export:"Izvezi",delete:"Obriši",confirmDelete:"Obrisati kviz „{name}“?",copySuffix:"(kopija)",untitled:"Kviz bez naslova",back:"Nazad",settings:"Podešavanja",saved:"Sačuvano",addQuestion:"Dodaj pitanje",chooseType:"Izaberi tip pitanja",questionType:"Tip pitanja",questionText:"Tekst pitanja",qTextPh:"Upiši pitanje…",image:"Slika",uploadImage:"Otpremi sliku",imageUrl:"Slika sa linka",imageUrlPrompt:"Nalepi adresu (URL) slike:",removeImage:"Ukloni sliku",timeLimit:"Vreme za odgovor",seconds:"{n} s",points:"Bodovi",pts0:"Bez bodova",pts1:"Standardno",pts2:"Dupli bodovi",answers:"Odgovori",answerPh:"Odgovor {n}",addAnswer:"Dodaj odgovor",markCorrect:"Označi kao tačan",true:"Tačno",false:"Netačno",correctAnswer:"Tačan odgovor",acceptedAnswers:"Prihvaćeni odgovori",acceptedHint:"Ne razlikuju se velika i mala slova, kvačice (č, ć, š…) ni ćirilica/latinica.",addAccepted:"Dodaj prihvaćen odgovor",maxLen:"Najviše znakova",min:"Najmanje",max:"Najviše",step:"Korak",correctValue:"Tačna vrednost",tolerance:"Dozvoljeno odstupanje (±)",unit:"Jedinica (npr. cm)",orderItems:"Stavke u tačnom redosledu",orderHint:"Upiši stavke tačnim redom – igračima će biti izmešane.",addItem:"Dodaj stavku",pinHint:"Klikni na sliku da označiš tačno mesto, pa podesi veličinu zelenog kruga.",pinNeedsImage:"Za ovaj tip pitanja prvo dodaj sliku.",radius:"Veličina tačne zone",slideBody:"Tekst slajda",moveUp:"Gore",moveDown:"Dole",deleteQ:"Obriši",duplicateQ:"Dupliraj",problem_text:"Nedostaje tekst pitanja",problem_answers:"Potrebna su bar 2 popunjena odgovora",problem_correct:"Označi tačan odgovor",problem_accepted:"Dodaj bar jedan prihvaćen odgovor",problem_slider:"Proveri vrednosti klizača (najmanje < tačna < najviše)",problem_items:"Potrebne su bar 2 stavke",problem_image:"Potrebna je slika",incompleteWarn:"Nedovršenih pitanja: {n}. Ona će biti preskočena. Nastaviti?",noValidQ:"Kviz nema nijedno dovršeno pitanje.",description:"Opis",shuffleQ:"Izmešaj redosled pitanja",shuffleA:"Izmešaj redosled odgovora",streak:"Bonus za niz tačnih odgovora",showText:"Prikaži pitanje i odgovore na uređajima igrača",close:"Zatvori",storageFull:"Nema više mesta u pregledaču. Koristi manje slike ili izvezi kvizove.",importErr:"Datoteka nije ispravan kviz.",imported:"Uvezeno kvizova: {n}",gamePin:"PIN igre",joinAt:"Pridruži se na",waitingPlayers:"Čekamo igrače…",start:"Počni",kickConfirm:"Izbaciti igrača {name}?",connecting:"Povezivanje…",netError:"Greška u mreži: {e}",netMissing:"Biblioteka za povezivanje nije učitana – potreban je internet. Možeš i dalje da uređuješ kvizove i vežbaš.",getReady:"Spremi se!",questionNofM:"Pitanje {i} od {n}",skip:"Preskoči",next:"Dalje",answerOnDevice:"Odgovorite na svojim uređajima",scoreboard:"Rang lista",endGame:"Završi",results:"Rezultati",downloadCsv:"Preuzmi rezultate (CSV)",player:"Igrač",score:"Bodovi",correctCount:"Tačnih",home:"Početna",leaveConfirm:"Igra je u toku. Sigurno izlaziš?",fullscreen:"Ceo ekran",enterPin:"PIN igre",enterName:"Tvoje ime",enter:"Uđi",youreIn:"Ušao/la si!",seeName:"Vidiš li svoje ime na ekranu?",gameNotFound:"Igra s tim PIN-om nije pronađena.",connLost:"Veza je prekinuta.",tryAgain:"Pokušaj ponovo",kicked:"Domaćin te je uklonio iz igre.",submit:"Pošalji",answerSent:"Odgovor je poslat!",waitOthers:"Čekamo ostale…",timeUp:"Vreme je isteklo!",correctMsg:"Tačno!",wrongMsg:"Netačno",thanks:"Hvala na odgovoru!",place:"{n}. mesto",streakN:"Niz tačnih: {n} 🔥",lookAtScreen:"Pogledaj veliki ekran",pickAll:"Izaberi sve tačne odgovore",tapImage:"Dodirni sliku da postaviš pribadaču",typeHere:"Upiši odgovor…",gameOver:"Kraj igre!",yourScore:"Tvoji bodovi: {n}",practiceDone:"Vežba je završena!",correctOf:"Tačno: {c} od {n}",total:"Ukupno bodova",retry:"Ponovo",language:"Jezik",answersCount:"Odgovora",correctN:"Tačno je odgovorilo: {c} od {n}",noAnswers:"Još nema odgovora",localNote:"Igrači se pridružuju sa svojih telefona ili računara, preko interneta, unošenjem PIN-a.",allUnlocked:"Svi tipovi pitanja: kviz, više tačnih, tačno/netačno, ukucaj odgovor, klizač, slagalica, pribadača na slici, anketa, oblak reči, otvoreni odgovor i slajd.",slide:"Slajd",nobody:"Niko još nije ušao",of:"od",
+type_quiz:"Kviz",typeDesc_quiz:"Jedan tačan od 2–6 ponuđenih odgovora",type_multi:"Više tačnih",typeDesc_multi:"Igrač mora da izabere sve tačne odgovore",type_tf:"Tačno / Netačno",typeDesc_tf:"Tvrdnja koja je tačna ili netačna",type_type:"Ukucaj odgovor",typeDesc_type:"Igrač kuca odgovor; možeš dodati više prihvaćenih",type_slider:"Klizač",typeDesc_slider:"Igrač bira broj na skali, uz dozvoljeno odstupanje",type_order:"Slagalica",typeDesc_order:"Igrač slaže stavke u tačan redosled",type_pin:"Pribadača",typeDesc_pin:"Igrač dodiruje tačno mesto na slici",type_poll:"Anketa",typeDesc_poll:"Prikupi mišljenja – bez tačnog odgovora",type_cloud:"Oblak reči",typeDesc_cloud:"Kratki odgovori se prikazuju kao oblak reči",type_open:"Otvoreni odgovor",typeDesc_open:"Duži slobodan odgovor, prikazan na ekranu",type_slide:"Slajd",typeDesc_slide:"Informacija ili objašnjenje između pitanja"},
+en:{appName:"Quiz Arena",tagline:"A classroom quiz – every question type unlocked",join:"Join a game",newQuiz:"New quiz",import:"Import quiz",myQuizzes:"My quizzes",noQuizzes:"No quizzes yet. Create your first one!",questionsN:"Questions: {n}",host:"Host game",practice:"Practice solo",edit:"Edit",duplicate:"Duplicate",export:"Export",delete:"Delete",confirmDelete:"Delete quiz “{name}”?",copySuffix:"(copy)",untitled:"Untitled quiz",back:"Back",settings:"Settings",saved:"Saved",addQuestion:"Add question",chooseType:"Choose a question type",questionType:"Question type",questionText:"Question text",qTextPh:"Type your question…",image:"Image",uploadImage:"Upload image",imageUrl:"Image from link",imageUrlPrompt:"Paste the image address (URL):",removeImage:"Remove image",timeLimit:"Time limit",seconds:"{n} s",points:"Points",pts0:"No points",pts1:"Standard",pts2:"Double points",answers:"Answers",answerPh:"Answer {n}",addAnswer:"Add answer",markCorrect:"Mark as correct",true:"True",false:"False",correctAnswer:"Correct answer",acceptedAnswers:"Accepted answers",acceptedHint:"Case, accents and Cyrillic/Latin script are ignored.",addAccepted:"Add accepted answer",maxLen:"Max characters",min:"Minimum",max:"Maximum",step:"Step",correctValue:"Correct value",tolerance:"Allowed margin (±)",unit:"Unit (e.g. cm)",orderItems:"Items in the correct order",orderHint:"Enter items in the correct order – players get them shuffled.",addItem:"Add item",pinHint:"Click the image to mark the correct spot, then adjust the green circle.",pinNeedsImage:"Add an image first for this question type.",radius:"Size of the correct zone",slideBody:"Slide text",moveUp:"Up",moveDown:"Down",deleteQ:"Delete",duplicateQ:"Duplicate",problem_text:"Question text is missing",problem_answers:"At least 2 filled-in answers are needed",problem_correct:"Mark the correct answer",problem_accepted:"Add at least one accepted answer",problem_slider:"Check slider values (min < correct < max)",problem_items:"At least 2 items are needed",problem_image:"An image is required",incompleteWarn:"Incomplete questions: {n}. They will be skipped. Continue?",noValidQ:"This quiz has no complete questions.",description:"Description",shuffleQ:"Shuffle question order",shuffleA:"Shuffle answer order",streak:"Answer streak bonus",showText:"Show question and answers on player devices",close:"Close",storageFull:"Browser storage is full. Use smaller images or export quizzes.",importErr:"The file is not a valid quiz.",imported:"Quizzes imported: {n}",gamePin:"Game PIN",joinAt:"Join at",waitingPlayers:"Waiting for players…",start:"Start",kickConfirm:"Remove player {name}?",connecting:"Connecting…",netError:"Network error: {e}",netMissing:"The connection library did not load – internet is required. You can still edit quizzes and practice.",getReady:"Get ready!",questionNofM:"Question {i} of {n}",skip:"Skip",next:"Next",answerOnDevice:"Answer on your devices",scoreboard:"Scoreboard",endGame:"Finish",results:"Results",downloadCsv:"Download results (CSV)",player:"Player",score:"Score",correctCount:"Correct",home:"Home",leaveConfirm:"A game is running. Leave anyway?",fullscreen:"Fullscreen",enterPin:"Game PIN",enterName:"Your name",enter:"Enter",youreIn:"You're in!",seeName:"See your name on the screen?",gameNotFound:"No game found with that PIN.",connLost:"Connection lost.",tryAgain:"Try again",kicked:"The host removed you from the game.",submit:"Submit",answerSent:"Answer sent!",waitOthers:"Waiting for others…",timeUp:"Time's up!",correctMsg:"Correct!",wrongMsg:"Incorrect",thanks:"Thanks for answering!",place:"Place {n}",streakN:"Answer streak: {n} 🔥",lookAtScreen:"Look at the big screen",pickAll:"Pick all correct answers",tapImage:"Tap the image to drop your pin",typeHere:"Type your answer…",gameOver:"Game over!",yourScore:"Your score: {n}",practiceDone:"Practice finished!",correctOf:"Correct: {c} of {n}",total:"Total points",retry:"Again",language:"Language",answersCount:"Answers",correctN:"Answered correctly: {c} of {n}",noAnswers:"No answers yet",localNote:"Players join from their phones or computers over the internet by entering the PIN.",allUnlocked:"All question types: quiz, multiple correct, true/false, type answer, slider, puzzle, pin on image, poll, word cloud, open-ended and slide.",slide:"Slide",nobody:"Nobody has joined yet",of:"of",
+type_quiz:"Quiz",typeDesc_quiz:"One correct out of 2–6 answers",type_multi:"Multiple correct",typeDesc_multi:"Players must select all correct answers",type_tf:"True / False",typeDesc_tf:"A statement that is true or false",type_type:"Type answer",typeDesc_type:"Players type the answer; add several accepted ones",type_slider:"Slider",typeDesc_slider:"Players pick a number on a scale, with a margin",type_order:"Puzzle",typeDesc_order:"Players put items in the correct order",type_pin:"Pin answer",typeDesc_pin:"Players tap the correct spot on an image",type_poll:"Poll",typeDesc_poll:"Collect opinions – no correct answer",type_cloud:"Word cloud",typeDesc_cloud:"Short answers shown as a word cloud",type_open:"Open-ended",typeDesc_open:"Longer free answers shown on screen",type_slide:"Slide",typeDesc_slide:"Information or explanation between questions"},
+mk:{appName:"Квиз арена",tagline:"Квиз за училница – сите типови прашања отклучени",join:"Приклучи се на игра",newQuiz:"Нов квиз",import:"Увези квиз",myQuizzes:"Мои квизови",noQuizzes:"Сè уште нема квизови. Направи го првиот!",questionsN:"Прашања: {n}",host:"Започни игра",practice:"Вежбај сам",edit:"Уреди",duplicate:"Дуплирај",export:"Извези",delete:"Избриши",confirmDelete:"Да се избрише квизот „{name}“?",copySuffix:"(копија)",untitled:"Квиз без наслов",back:"Назад",settings:"Поставки",saved:"Зачувано",addQuestion:"Додај прашање",chooseType:"Избери тип прашање",questionType:"Тип прашање",questionText:"Текст на прашањето",qTextPh:"Напиши прашање…",image:"Слика",uploadImage:"Постави слика",imageUrl:"Слика од линк",imageUrlPrompt:"Залепи адреса (URL) на сликата:",removeImage:"Отстрани слика",timeLimit:"Време за одговор",seconds:"{n} с",points:"Поени",pts0:"Без поени",pts1:"Стандардно",pts2:"Двојни поени",answers:"Одговори",answerPh:"Одговор {n}",addAnswer:"Додај одговор",markCorrect:"Означи како точен",true:"Точно",false:"Неточно",correctAnswer:"Точен одговор",acceptedAnswers:"Прифатени одговори",acceptedHint:"Не се разликуваат големи/мали букви, дијакритици ни кирилица/латиница.",addAccepted:"Додај прифатен одговор",maxLen:"Најмногу знаци",min:"Најмалку",max:"Најмногу",step:"Чекор",correctValue:"Точна вредност",tolerance:"Дозволено отстапување (±)",unit:"Единица (на пр. cm)",orderItems:"Ставки по точен редослед",orderHint:"Внеси ги ставките по точен редослед – на играчите ќе им бидат измешани.",addItem:"Додај ставка",pinHint:"Кликни на сликата за да го означиш точното место, па прилагоди го зелениот круг.",pinNeedsImage:"За овој тип прашање прво додај слика.",radius:"Големина на точната зона",slideBody:"Текст на слајдот",moveUp:"Горе",moveDown:"Долу",deleteQ:"Избриши",duplicateQ:"Дуплирај",problem_text:"Недостасува текст на прашањето",problem_answers:"Потребни се барем 2 пополнети одговори",problem_correct:"Означи го точниот одговор",problem_accepted:"Додај барем еден прифатен одговор",problem_slider:"Провери ги вредностите на лизгачот",problem_items:"Потребни се барем 2 ставки",problem_image:"Потребна е слика",incompleteWarn:"Недовршени прашања: {n}. Ќе бидат прескокнати. Продолжи?",noValidQ:"Квизот нема ниту едно довршено прашање.",description:"Опис",shuffleQ:"Измешај го редоследот на прашањата",shuffleA:"Измешај го редоследот на одговорите",streak:"Бонус за низа точни одговори",showText:"Прикажи прашање и одговори на уредите на играчите",close:"Затвори",storageFull:"Нема повеќе место во прелистувачот. Користи помали слики или извези квизови.",importErr:"Датотеката не е исправен квиз.",imported:"Увезени квизови: {n}",gamePin:"PIN на играта",joinAt:"Приклучи се на",waitingPlayers:"Чекаме играчи…",start:"Почни",kickConfirm:"Да се отстрани играчот {name}?",connecting:"Поврзување…",netError:"Грешка во мрежата: {e}",netMissing:"Библиотеката за поврзување не се вчита – потребен е интернет. Сè уште можеш да уредуваш и вежбаш.",getReady:"Подготви се!",questionNofM:"Прашање {i} од {n}",skip:"Прескокни",next:"Понатаму",answerOnDevice:"Одговорете на вашите уреди",scoreboard:"Ранг-листа",endGame:"Заврши",results:"Резултати",downloadCsv:"Преземи резултати (CSV)",player:"Играч",score:"Поени",correctCount:"Точни",home:"Почетна",leaveConfirm:"Играта е во тек. Сигурно излегуваш?",fullscreen:"Цел екран",enterPin:"PIN на играта",enterName:"Твоето име",enter:"Влези",youreIn:"Влезе!",seeName:"Го гледаш ли твоето име на екранот?",gameNotFound:"Не е пронајдена игра со тој PIN.",connLost:"Врската е прекината.",tryAgain:"Обиди се повторно",kicked:"Домаќинот те отстрани од играта.",submit:"Испрати",answerSent:"Одговорот е испратен!",waitOthers:"Ги чекаме другите…",timeUp:"Времето истече!",correctMsg:"Точно!",wrongMsg:"Неточно",thanks:"Благодарам за одговорот!",place:"{n}. место",streakN:"Низа точни: {n} 🔥",lookAtScreen:"Погледни го големиот екран",pickAll:"Избери ги сите точни одговори",tapImage:"Допри ја сликата за да ја поставиш иглата",typeHere:"Напиши одговор…",gameOver:"Крај на играта!",yourScore:"Твои поени: {n}",practiceDone:"Вежбата заврши!",correctOf:"Точно: {c} од {n}",total:"Вкупно поени",retry:"Повторно",language:"Јазик",answersCount:"Одговори",correctN:"Точно одговорија: {c} од {n}",noAnswers:"Сè уште нема одговори",localNote:"Играчите се приклучуваат од своите телефони или компјутери преку интернет, со внесување PIN.",allUnlocked:"Сите типови прашања: квиз, повеќе точни, точно/неточно, напиши одговор, лизгач, сложувалка, игла на слика, анкета, облак од зборови, отворен одговор и слајд.",slide:"Слајд",nobody:"Никој уште не влегол",of:"од",
+type_quiz:"Квиз",typeDesc_quiz:"Еден точен од 2–6 понудени одговори",type_multi:"Повеќе точни",typeDesc_multi:"Играчот мора да ги избере сите точни одговори",type_tf:"Точно / Неточно",typeDesc_tf:"Тврдење што е точно или неточно",type_type:"Напиши одговор",typeDesc_type:"Играчот го пишува одговорот; можеш да додадеш повеќе прифатени",type_slider:"Лизгач",typeDesc_slider:"Играчот избира број на скала, со дозволено отстапување",type_order:"Сложувалка",typeDesc_order:"Играчот ги подредува ставките по точен редослед",type_pin:"Игла",typeDesc_pin:"Играчот го допира точното место на сликата",type_poll:"Анкета",typeDesc_poll:"Собери мислења – без точен одговор",type_cloud:"Облак од зборови",typeDesc_cloud:"Кратки одговори прикажани како облак",type_open:"Отворен одговор",typeDesc_open:"Подолг слободен одговор, прикажан на екранот",type_slide:"Слајд",typeDesc_slide:"Информација или објаснување меѓу прашањата"},
+bg:{appName:"Куиз арена",tagline:"Куиз за класната стая – всички видове въпроси отключени",join:"Включи се в игра",newQuiz:"Нов куиз",import:"Импортирай куиз",myQuizzes:"Моите куизове",noQuizzes:"Още няма куизове. Създай първия!",questionsN:"Въпроси: {n}",host:"Стартирай игра",practice:"Упражнявай сам",edit:"Редактирай",duplicate:"Дублирай",export:"Експортирай",delete:"Изтрий",confirmDelete:"Да се изтрие куизът „{name}“?",copySuffix:"(копие)",untitled:"Куиз без заглавие",back:"Назад",settings:"Настройки",saved:"Запазено",addQuestion:"Добави въпрос",chooseType:"Избери вид въпрос",questionType:"Вид въпрос",questionText:"Текст на въпроса",qTextPh:"Напиши въпроса…",image:"Изображение",uploadImage:"Качи изображение",imageUrl:"Изображение от линк",imageUrlPrompt:"Постави адреса (URL) на изображението:",removeImage:"Премахни изображението",timeLimit:"Време за отговор",seconds:"{n} с",points:"Точки",pts0:"Без точки",pts1:"Стандартно",pts2:"Двойни точки",answers:"Отговори",answerPh:"Отговор {n}",addAnswer:"Добави отговор",markCorrect:"Отбележи като верен",true:"Вярно",false:"Невярно",correctAnswer:"Верен отговор",acceptedAnswers:"Приети отговори",acceptedHint:"Не се различават главни/малки букви, диакритики и кирилица/латиница.",addAccepted:"Добави приет отговор",maxLen:"Най-много знаци",min:"Минимум",max:"Максимум",step:"Стъпка",correctValue:"Вярна стойност",tolerance:"Допустимо отклонение (±)",unit:"Мерна единица (напр. cm)",orderItems:"Елементи в правилен ред",orderHint:"Въведи елементите в правилния ред – играчите ще ги получат разбъркани.",addItem:"Добави елемент",pinHint:"Кликни върху изображението, за да отбележиш правилното място, после нагласи зеления кръг.",pinNeedsImage:"За този вид въпрос първо добави изображение.",radius:"Размер на вярната зона",slideBody:"Текст на слайда",moveUp:"Нагоре",moveDown:"Надолу",deleteQ:"Изтрий",duplicateQ:"Дублирай",problem_text:"Липсва текст на въпроса",problem_answers:"Нужни са поне 2 попълнени отговора",problem_correct:"Отбележи верния отговор",problem_accepted:"Добави поне един приет отговор",problem_slider:"Провери стойностите на плъзгача",problem_items:"Нужни са поне 2 елемента",problem_image:"Нужно е изображение",incompleteWarn:"Недовършени въпроси: {n}. Ще бъдат пропуснати. Продължаваш ли?",noValidQ:"Куизът няма нито един довършен въпрос.",description:"Описание",shuffleQ:"Разбъркай реда на въпросите",shuffleA:"Разбъркай реда на отговорите",streak:"Бонус за поредица верни отговори",showText:"Покажи въпроса и отговорите на устройствата на играчите",close:"Затвори",storageFull:"Няма повече място в браузъра. Използвай по-малки изображения или експортирай куизове.",importErr:"Файлът не е валиден куиз.",imported:"Импортирани куизове: {n}",gamePin:"PIN на играта",joinAt:"Включи се на",waitingPlayers:"Чакаме играчи…",start:"Старт",kickConfirm:"Да се премахне играчът {name}?",connecting:"Свързване…",netError:"Мрежова грешка: {e}",netMissing:"Библиотеката за връзка не се зареди – нужен е интернет. Все пак можеш да редактираш и да се упражняваш.",getReady:"Приготви се!",questionNofM:"Въпрос {i} от {n}",skip:"Пропусни",next:"Напред",answerOnDevice:"Отговорете на устройствата си",scoreboard:"Класиране",endGame:"Край",results:"Резултати",downloadCsv:"Изтегли резултатите (CSV)",player:"Играч",score:"Точки",correctCount:"Верни",home:"Начало",leaveConfirm:"Играта тече. Сигурно ли излизаш?",fullscreen:"Цял екран",enterPin:"PIN на играта",enterName:"Твоето име",enter:"Влез",youreIn:"Влезе!",seeName:"Виждаш ли името си на екрана?",gameNotFound:"Не е намерена игра с този PIN.",connLost:"Връзката прекъсна.",tryAgain:"Опитай пак",kicked:"Домакинът те премахна от играта.",submit:"Изпрати",answerSent:"Отговорът е изпратен!",waitOthers:"Чакаме останалите…",timeUp:"Времето изтече!",correctMsg:"Вярно!",wrongMsg:"Грешно",thanks:"Благодаря за отговора!",place:"{n}. място",streakN:"Поредица верни: {n} 🔥",lookAtScreen:"Погледни големия екран",pickAll:"Избери всички верни отговори",tapImage:"Докосни изображението, за да поставиш карфицата",typeHere:"Напиши отговор…",gameOver:"Край на играта!",yourScore:"Твоите точки: {n}",practiceDone:"Упражнението приключи!",correctOf:"Верни: {c} от {n}",total:"Общо точки",retry:"Отново",language:"Език",answersCount:"Отговори",correctN:"Вярно отговориха: {c} от {n}",noAnswers:"Още няма отговори",localNote:"Играчите се включват от телефоните или компютрите си през интернет, като въведат PIN.",allUnlocked:"Всички видове въпроси: куиз, няколко верни, вярно/невярно, напиши отговор, плъзгач, пъзел, карфица върху изображение, анкета, облак от думи, отворен отговор и слайд.",slide:"Слайд",nobody:"Още никой не е влязъл",of:"от",
+type_quiz:"Куиз",typeDesc_quiz:"Един верен от 2–6 отговора",type_multi:"Няколко верни",typeDesc_multi:"Играчът трябва да избере всички верни отговори",type_tf:"Вярно / Невярно",typeDesc_tf:"Твърдение, което е вярно или невярно",type_type:"Напиши отговор",typeDesc_type:"Играчът пише отговора; може да добавиш няколко приети",type_slider:"Плъзгач",typeDesc_slider:"Играчът избира число по скала, с допустимо отклонение",type_order:"Пъзел",typeDesc_order:"Играчът подрежда елементите в правилен ред",type_pin:"Карфица",typeDesc_pin:"Играчът докосва правилното място на изображението",type_poll:"Анкета",typeDesc_poll:"Събери мнения – без верен отговор",type_cloud:"Облак от думи",typeDesc_cloud:"Кратки отговори, показани като облак",type_open:"Отворен отговор",typeDesc_open:"По-дълъг свободен отговор, показан на екрана",type_slide:"Слайд",typeDesc_slide:"Информация или обяснение между въпросите"},
+ro:{appName:"Arena de quiz",tagline:"Quiz pentru clasă – toate tipurile de întrebări deblocate",join:"Intră într-un joc",newQuiz:"Quiz nou",import:"Importă quiz",myQuizzes:"Quizurile mele",noQuizzes:"Încă nu există quizuri. Creează-l pe primul!",questionsN:"Întrebări: {n}",host:"Pornește jocul",practice:"Exersează singur",edit:"Editează",duplicate:"Duplică",export:"Exportă",delete:"Șterge",confirmDelete:"Ștergi quizul „{name}”?",copySuffix:"(copie)",untitled:"Quiz fără titlu",back:"Înapoi",settings:"Setări",saved:"Salvat",addQuestion:"Adaugă întrebare",chooseType:"Alege tipul întrebării",questionType:"Tipul întrebării",questionText:"Textul întrebării",qTextPh:"Scrie întrebarea…",image:"Imagine",uploadImage:"Încarcă imagine",imageUrl:"Imagine din link",imageUrlPrompt:"Lipește adresa (URL) imaginii:",removeImage:"Elimină imaginea",timeLimit:"Timp de răspuns",seconds:"{n} s",points:"Puncte",pts0:"Fără puncte",pts1:"Standard",pts2:"Puncte duble",answers:"Răspunsuri",answerPh:"Răspuns {n}",addAnswer:"Adaugă răspuns",markCorrect:"Marchează ca corect",true:"Adevărat",false:"Fals",correctAnswer:"Răspuns corect",acceptedAnswers:"Răspunsuri acceptate",acceptedHint:"Nu contează majusculele, diacriticele sau alfabetul chirilic/latin.",addAccepted:"Adaugă răspuns acceptat",maxLen:"Număr maxim de caractere",min:"Minim",max:"Maxim",step:"Pas",correctValue:"Valoarea corectă",tolerance:"Abatere permisă (±)",unit:"Unitate (ex. cm)",orderItems:"Elemente în ordinea corectă",orderHint:"Scrie elementele în ordinea corectă – jucătorii le primesc amestecate.",addItem:"Adaugă element",pinHint:"Dă clic pe imagine pentru a marca locul corect, apoi ajustează cercul verde.",pinNeedsImage:"Pentru acest tip de întrebare adaugă mai întâi o imagine.",radius:"Mărimea zonei corecte",slideBody:"Textul diapozitivului",moveUp:"Sus",moveDown:"Jos",deleteQ:"Șterge",duplicateQ:"Duplică",problem_text:"Lipsește textul întrebării",problem_answers:"Sunt necesare cel puțin 2 răspunsuri completate",problem_correct:"Marchează răspunsul corect",problem_accepted:"Adaugă cel puțin un răspuns acceptat",problem_slider:"Verifică valorile cursorului",problem_items:"Sunt necesare cel puțin 2 elemente",problem_image:"Este necesară o imagine",incompleteWarn:"Întrebări incomplete: {n}. Vor fi sărite. Continui?",noValidQ:"Quizul nu are nicio întrebare completă.",description:"Descriere",shuffleQ:"Amestecă ordinea întrebărilor",shuffleA:"Amestecă ordinea răspunsurilor",streak:"Bonus pentru serie de răspunsuri corecte",showText:"Arată întrebarea și răspunsurile pe dispozitivele jucătorilor",close:"Închide",storageFull:"Spațiul din browser e plin. Folosește imagini mai mici sau exportă quizurile.",importErr:"Fișierul nu este un quiz valid.",imported:"Quizuri importate: {n}",gamePin:"PIN-ul jocului",joinAt:"Intră pe",waitingPlayers:"Așteptăm jucătorii…",start:"Start",kickConfirm:"Elimini jucătorul {name}?",connecting:"Se conectează…",netError:"Eroare de rețea: {e}",netMissing:"Biblioteca de conectare nu s-a încărcat – e nevoie de internet. Poți totuși edita și exersa.",getReady:"Pregătește-te!",questionNofM:"Întrebarea {i} din {n}",skip:"Sari peste",next:"Mai departe",answerOnDevice:"Răspundeți pe dispozitivele voastre",scoreboard:"Clasament",endGame:"Termină",results:"Rezultate",downloadCsv:"Descarcă rezultatele (CSV)",player:"Jucător",score:"Puncte",correctCount:"Corecte",home:"Acasă",leaveConfirm:"Jocul este în desfășurare. Sigur ieși?",fullscreen:"Ecran complet",enterPin:"PIN-ul jocului",enterName:"Numele tău",enter:"Intră",youreIn:"Ai intrat!",seeName:"Îți vezi numele pe ecran?",gameNotFound:"Nu a fost găsit niciun joc cu acest PIN.",connLost:"Conexiunea s-a întrerupt.",tryAgain:"Încearcă din nou",kicked:"Gazda te-a eliminat din joc.",submit:"Trimite",answerSent:"Răspuns trimis!",waitOthers:"Îi așteptăm pe ceilalți…",timeUp:"Timpul a expirat!",correctMsg:"Corect!",wrongMsg:"Greșit",thanks:"Mulțumim pentru răspuns!",place:"Locul {n}",streakN:"Serie corectă: {n} 🔥",lookAtScreen:"Privește ecranul mare",pickAll:"Alege toate răspunsurile corecte",tapImage:"Atinge imaginea pentru a pune pioneza",typeHere:"Scrie răspunsul…",gameOver:"Jocul s-a terminat!",yourScore:"Punctele tale: {n}",practiceDone:"Exercițiul s-a terminat!",correctOf:"Corecte: {c} din {n}",total:"Total puncte",retry:"Din nou",language:"Limba",answersCount:"Răspunsuri",correctN:"Au răspuns corect: {c} din {n}",noAnswers:"Încă nu sunt răspunsuri",localNote:"Jucătorii intră de pe telefoane sau calculatoare, prin internet, introducând PIN-ul.",allUnlocked:"Toate tipurile de întrebări: quiz, mai multe corecte, adevărat/fals, scrie răspunsul, cursor, puzzle, pioneză pe imagine, sondaj, nor de cuvinte, răspuns liber și diapozitiv.",slide:"Diapozitiv",nobody:"Nu a intrat încă nimeni",of:"din",
+type_quiz:"Quiz",typeDesc_quiz:"Un răspuns corect din 2–6",type_multi:"Mai multe corecte",typeDesc_multi:"Jucătorul trebuie să aleagă toate răspunsurile corecte",type_tf:"Adevărat / Fals",typeDesc_tf:"O afirmație adevărată sau falsă",type_type:"Scrie răspunsul",typeDesc_type:"Jucătorul scrie răspunsul; poți adăuga mai multe acceptate",type_slider:"Cursor",typeDesc_slider:"Jucătorul alege un număr pe o scală, cu abatere permisă",type_order:"Puzzle",typeDesc_order:"Jucătorul pune elementele în ordinea corectă",type_pin:"Pioneză",typeDesc_pin:"Jucătorul atinge locul corect pe imagine",type_poll:"Sondaj",typeDesc_poll:"Adună opinii – fără răspuns corect",type_cloud:"Nor de cuvinte",typeDesc_cloud:"Răspunsuri scurte afișate ca nor de cuvinte",type_open:"Răspuns liber",typeDesc_open:"Răspuns liber mai lung, afișat pe ecran",type_slide:"Diapozitiv",typeDesc_slide:"Informație sau explicație între întrebări"}
+};
+const LANGS={sr:"Srpski",mk:"Македонски",bg:"Български",ro:"Română",en:"English"};
+let LANG=localStorage.getItem('ka.lang')||'sr'; if(!I18N[LANG]) LANG='sr';
+function t(k,vars){let s=(I18N[LANG]&&I18N[LANG][k])??I18N.en[k]??k; if(vars) for(const v in vars) s=s.split('{'+v+'}').join(vars[v]); return s;}
+
+/* ================= helpers ================= */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const clone=o=>JSON.parse(JSON.stringify(o));
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+let toastT; function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);}
+function view(html){app.innerHTML=html;window.scrollTo(0,0);}
+const SHAPES=['▲','◆','●','■','★','⬢'];
+const PARAMS=new URLSearchParams(location.search);
+const LOCAL=PARAMS.has('local');
+const PEER_PREFIX='kvizarena-v1-';
+function download(name,text,type){const b=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function slug(s){return (norm(s)||'kviz').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'kviz';}
+function modal(html,onClose){const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<div class="modal">${html}</div>`;document.body.appendChild(bg);const close=()=>{bg.remove();onClose&&onClose();};bg.addEventListener('click',e=>{if(e.target===bg)close();});return {el:bg,close};}
+
+const CYR={'а':'a','б':'b','в':'v','г':'g','д':'d','ђ':'dj','е':'e','ж':'z','з':'z','и':'i','ј':'j','к':'k','л':'l','љ':'lj','м':'m','н':'n','њ':'nj','о':'o','п':'p','р':'r','с':'s','т':'t','ћ':'c','у':'u','ф':'f','х':'h','ц':'c','ч':'c','џ':'dz','ш':'s','ѓ':'g','ќ':'k','ѕ':'dz','й':'j','щ':'sht','ъ':'a','ь':'','ю':'ju','я':'ja','ы':'y','э':'e','ё':'e'};
+function norm(s){s=String(s??'').toLowerCase().trim().replace(/đ/g,'dj');s=[...s].map(c=>CYR[c]??c).join('');s=s.normalize('NFD').replace(/[̀-ͯ]/g,'');return s.replace(/[.,!?;:"'()„“”‘’«»]/g,'').replace(/\s+/g,' ').trim();}
+
+/* ================= question model ================= */
+const TYPES={quiz:{icon:'🔘',scored:true},multi:{icon:'☑️',scored:true},tf:{icon:'⚖️',scored:true},type:{icon:'⌨️',scored:true},slider:{icon:'🎚️',scored:true},order:{icon:'🧩',scored:true},pin:{icon:'📍',scored:true},poll:{icon:'📊',scored:false},cloud:{icon:'☁️',scored:false},open:{icon:'💬',scored:false},slide:{icon:'🖼️',scored:false}};
+const TIMES=[5,10,15,20,30,45,60,90,120,180,240];
+function defaultsFor(type){switch(type){
+case 'quiz':return {answers:[0,1,2,3].map(i=>({text:'',correct:i===0}))};
+case 'multi':return {answers:[0,1,2,3].map(i=>({text:'',correct:i<2}))};
+case 'poll':return {answers:[0,1,2,3].map(()=>({text:''}))};
+case 'tf':return {correct:true};
+case 'type':return {accepted:[''],maxLen:30};
+case 'slider':return {min:0,max:100,step:1,correct:50,tol:0,unit:''};
+case 'order':return {items:['','','','']};
+case 'pin':return {target:{x:.5,y:.5},radius:.1,aspect:.75};
+case 'cloud':return {maxLen:25};
+case 'open':return {maxLen:250};
+case 'slide':return {body:''};}return {};}
+function newQuestion(type){return Object.assign({id:uid(),type,text:'',image:'',time:20,points:TYPES[type].scored?1:0},defaultsFor(type));}
+function changeType(q,type){const keep={id:q.id,type,text:q.text,image:q.image,time:q.time||20,points:TYPES[type].scored?(q.points||1):0};const d=defaultsFor(type);
+ if(q.answers&&d.answers){d.answers=q.answers.map(a=>type==='poll'?{text:a.text}:{text:a.text,correct:type==='multi'?!!a.correct:false});if(type==='quiz'){const ci=q.answers.findIndex(a=>a.correct);d.answers[ci<0?0:ci].correct=true;}}
+ if(q.type==='pin'&&type==='pin') Object.assign(d,{target:q.target,radius:q.radius,aspect:q.aspect});
+ return Object.assign(keep,d);}
+const isScored=q=>TYPES[q.type].scored&&q.points>0;
+function problem(q){
+ const filled=(q.answers||[]).filter(a=>a.text.trim());
+ if(q.type==='slide') return (q.text.trim()||q.body.trim()||q.image)?null:'problem_text';
+ if(!q.text.trim()&&!q.image) return 'problem_text';
+ switch(q.type){
+ case 'quiz':case 'multi':if(filled.length<2)return 'problem_answers';if(!filled.some(a=>a.correct))return 'problem_correct';break;
+ case 'poll':if(filled.length<2)return 'problem_answers';break;
+ case 'type':if(!q.accepted.some(a=>a.trim()))return 'problem_accepted';break;
+ case 'slider':{const mn=+q.min,mx=+q.max,c=+q.correct,s=+q.step;if(!(mn<mx)||!(c>=mn&&c<=mx)||!(s>0)||isNaN(+q.tol))return 'problem_slider';break;}
+ case 'order':if(q.items.filter(s=>s.trim()).length<2)return 'problem_items';break;
+ case 'pin':if(!q.image)return 'problem_image';break;}
+ return null;}
+function evaluate(q,v){
+ if(v===undefined||v===null) return TYPES[q.type].scored?false:null;
+ switch(q.type){
+ case 'quiz':return !!(q.answers[v]&&q.answers[v].correct);
+ case 'multi':{if(!Array.isArray(v))return false;const c=q.answers.map((a,i)=>a.correct?i:-1).filter(i=>i>=0);const s=[...new Set(v.map(Number))].sort((a,b)=>a-b);return s.length===c.length&&s.every((x,i)=>x===c[i]);}
+ case 'tf':return v===q.correct;
+ case 'type':return q.accepted.some(a=>a.trim()&&norm(a)===norm(v));
+ case 'slider':return Math.abs(Number(v)-Number(q.correct))<=Number(q.tol||0)+1e-9;
+ case 'order':return Array.isArray(v)&&v.length===q.items.length&&v.every((x,i)=>x===i);
+ case 'pin':{if(typeof v!=='object')return false;const dx=v.x-q.target.x,dy=(v.y-q.target.y)*(q.aspect||1);return Math.hypot(dx,dy)<=q.radius;}
+ default:return null;}}
+function calcPoints(q,ms){const T=q.time*1000;const f=Math.min(1,Math.max(0,ms/T));return Math.round(1000*(1-f/2))*q.points;}
+function correctText(q){switch(q.type){
+ case 'quiz':case 'multi':return q.answers.filter(a=>a.correct).map(a=>a.text).join(', ');
+ case 'tf':return t(q.correct?'true':'false');
+ case 'type':return q.accepted.filter(a=>a.trim()).join(' / ');
+ case 'slider':return q.correct+(q.unit?' '+q.unit:'')+(+q.tol?` (±${q.tol})`:'');
+ case 'order':return q.items.join(' → ');
+ default:return '';}}
+function publicQ(q,opts){
+ const p={type:q.type,text:opts.showText?q.text:'',time:q.time};
+ if(['quiz','multi','poll'].includes(q.type)) p.answers=q.answers.map(a=>opts.showText?a.text:'');
+ if(q.type==='slider') Object.assign(p,{min:+q.min,max:+q.max,step:+q.step,unit:q.unit});
+ if(q.type==='order'){let it=q.items.map((s,i)=>({id:i,text:s}));for(let k=0;k<10;k++){it=shuffle(it);if(it.some((x,i)=>x.id!==i))break;}p.items=it;}
+ if(q.type==='pin'){p.image=q.image;p.aspect=q.aspect;}
+ if(['type','cloud','open'].includes(q.type)) p.maxLen=q.maxLen;
+ if(q.type==='slide') p.body=q.body;
+ if(opts.withImage&&q.image) p.image=q.image;
+ return p;}
+function prepareQuiz(quiz){
+ const all=quiz.questions;const bad=all.filter(problem).length;const good=all.filter(q=>!problem(q));
+ if(!good.length){alert(t('noValidQ'));return null;}
+ if(bad&&!confirm(t('incompleteWarn',{n:bad})))return null;
+ const s=Object.assign({shuffleQ:false,shuffleA:false,streak:true,showText:true},quiz.settings||{});
+ let qs=clone(good).map(q=>{
+  if(q.answers) q.answers=q.answers.filter(a=>a.text.trim());
+  if(q.type==='order') q.items=q.items.filter(x=>x.trim());
+  if(q.type==='type') q.accepted=q.accepted.filter(x=>x.trim());
+  if(s.shuffleA&&q.answers&&q.type!=='poll') q.answers=shuffle(q.answers);
+  return q;});
+ if(s.shuffleQ) qs=shuffle(qs);
+ return {settings:s,qs,title:quiz.title||t('untitled')};}
+
+/* ================= storage ================= */
+function loadQuizzes(){try{const v=JSON.parse(localStorage.getItem('ka.quizzes'));return Array.isArray(v)?v:null;}catch(e){return null;}}
+function saveQuizzes(){try{localStorage.setItem('ka.quizzes',JSON.stringify(quizzes));return true;}catch(e){toast(t('storageFull'));return false;}}
+const PIN_SVG='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500"><rect width="800" height="500" fill="#f4f1ea"/><rect x="80" y="90" width="160" height="160" fill="#1368ce"/><polygon points="420,80 520,260 320,260" fill="#26890c"/><circle cx="640" cy="340" r="80" fill="#e21b3c"/><rect x="150" y="330" width="220" height="110" rx="20" fill="#d89e00"/><circle cx="470" cy="400" r="50" fill="#864cbf"/></svg>');
+function demoQuiz(){const Q=(type,o)=>Object.assign(newQuestion(type),o);return {id:uid(),title:'Demo: svi tipovi pitanja',description:'Primer kviza sa svim tipovima pitanja.',settings:{shuffleQ:false,shuffleA:false,streak:true,showText:true},questions:[
+ Q('slide',{text:'Dobro došli u Kviz arenu!',body:'Odgovaraj brzo – što brže odgovoriš, više bodova dobijaš.'}),
+ Q('quiz',{text:'Koji je glavni grad Srbije?',answers:[{text:'Beograd',correct:true},{text:'Novi Sad',correct:false},{text:'Niš',correct:false},{text:'Kragujevac',correct:false}]}),
+ Q('tf',{text:'Sunce je zvezda.',correct:true,time:10}),
+ Q('multi',{text:'Koji od ovih brojeva su prosti?',answers:[{text:'2',correct:true},{text:'9',correct:false},{text:'7',correct:true},{text:'15',correct:false}]}),
+ Q('type',{text:'Koliko je 7 · 8?',accepted:['56']}),
+ Q('slider',{text:'Koliki je zbir uglova u trouglu?',min:0,max:360,step:10,correct:180,tol:0,unit:'°'}),
+ Q('order',{text:'Poređaj planete od najbliže do najdalje od Sunca:',items:['Merkur','Venera','Zemlja','Mars'],time:30}),
+ Q('pin',{text:'Dodirni crveni krug.',image:PIN_SVG,target:{x:.8,y:.68},radius:.1,aspect:.625}),
+ Q('poll',{text:'Koji predmet ti je najzanimljiviji?',answers:[{text:'Matematika'},{text:'Fizika'},{text:'Geografija'},{text:'Likovno'}]}),
+ Q('cloud',{text:'Jednom rečju: kako ti je danas?'}),
+ Q('open',{text:'Šta bi voleo/la da naučimo sledećeg časa?',time:60})]};}
+let quizzes=loadQuizzes();
+if(!quizzes){quizzes=[demoQuiz()];saveQuizzes();}
+
+/* ================= networking ================= */
+function peerOk(){return LOCAL||typeof Peer!=='undefined';}
+function makeHostNet(pin,h){
+ if(LOCAL){const bc=new BroadcastChannel('ka-'+pin);bc.onmessage=e=>{const d=e.data;if(d.k==='c2h')h.msg(d.cid,d.m);else if(d.k==='bye')h.close(d.cid);};setTimeout(()=>h.ready(),30);
+  return {send(cid,m){bc.postMessage({k:'h2c',cid,m});},close(){bc.close();}};}
+ const conns=new Map();const peer=new Peer(PEER_PREFIX+pin,{debug:0});let closed=false;
+ peer.on('open',()=>h.ready());
+ peer.on('connection',conn=>{const cid=uid();conns.set(cid,conn);conn.on('data',d=>h.msg(cid,d));conn.on('close',()=>{conns.delete(cid);h.close(cid);});conn.on('error',()=>{});});
+ peer.on('error',e=>h.error(e));
+ peer.on('disconnected',()=>{if(!closed)setTimeout(()=>{try{peer.reconnect();}catch(e){}},1000);});
+ return {send(cid,m){const c=conns.get(cid);if(c&&c.open){try{c.send(m);}catch(e){}}},close(){closed=true;try{peer.destroy();}catch(e){}}};}
+function makePlayerNet(pin,h){
+ if(LOCAL){const cid=uid();const bc=new BroadcastChannel('ka-'+pin);bc.onmessage=e=>{const d=e.data;if(d.k==='h2c'&&d.cid===cid)h.msg(d.m);};setTimeout(()=>h.open(),30);
+  const bye=()=>{try{bc.postMessage({k:'bye',cid});}catch(e){}};addEventListener('pagehide',bye);
+  return {send(m){bc.postMessage({k:'c2h',cid,m});},close(){bye();bc.close();}};}
+ const peer=new Peer({debug:0});let conn=null;
+ peer.on('open',()=>{conn=peer.connect(PEER_PREFIX+pin,{reliable:true});conn.on('open',()=>h.open());conn.on('data',d=>h.msg(d));conn.on('close',()=>h.close());conn.on('error',()=>{});});
+ peer.on('error',e=>h.error(e));
+ return {send(m){if(conn&&conn.open){try{conn.send(m);}catch(e){}}},close(){try{peer.destroy();}catch(e){}}};}
+
+/* ================= HOME ================= */
+function langSelect(){return `<select class="lang" id="langsel" aria-label="${esc(t('language'))}">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===LANG?'selected':''}>${v}</option>`).join('')}</select>`;}
+function bindLang(rerender){const s=$('#langsel');if(s)s.onchange=()=>{LANG=s.value;localStorage.setItem('ka.lang',LANG);document.documentElement.lang=LANG;rerender();};}
+function renderHome(){
+ document.documentElement.lang=LANG;
+ view(`<div class="topbar"><div class="logo">🎯 ${esc(t('appName'))}</div><div class="spacer"></div>${langSelect()}</div>
+ <div class="wrap">
+  <p style="margin-top:0;font-size:1.15em;font-weight:600">${esc(t('tagline'))}</p>
+  <div class="hero">
+   <button class="btn primary big" id="b-join">📱 ${esc(t('join'))}</button>
+   <button class="btn big" id="b-new">＋ ${esc(t('newQuiz'))}</button>
+   <button class="btn dark big" id="b-imp">📂 ${esc(t('import'))}</button>
+  </div>
+  <h2 class="sec">${esc(t('myQuizzes'))}</h2>
+  ${quizzes.length?`<div class="qgrid">${quizzes.map(q=>`<div class="card qcard" data-id="${q.id}">
+   <h3>${esc(q.title||t('untitled'))}</h3>
+   <div class="meta">${esc(t('questionsN',{n:q.questions.length}))}${q.description?' · '+esc(q.description):''}</div>
+   <div class="icons">${[...new Set(q.questions.map(x=>TYPES[x.type].icon))].join(' ')}</div>
+   <div class="row"><button class="btn small primary" data-a="host">▶ ${esc(t('host'))}</button><button class="btn small green" data-a="practice">🎓 ${esc(t('practice'))}</button><button class="btn small" data-a="edit">✏️ ${esc(t('edit'))}</button><button class="btn small" data-a="dup">⧉ ${esc(t('duplicate'))}</button><button class="btn small" data-a="exp">⬇ ${esc(t('export'))}</button><button class="btn small danger" data-a="del">🗑 ${esc(t('delete'))}</button></div>
+  </div>`).join('')}</div>`:`<p class="note">${esc(t('noQuizzes'))}</p>`}
+  <p class="note" style="margin-top:28px">${esc(t('allUnlocked'))}<br>${esc(t('localNote'))}</p>
+ </div>`);
+ bindLang(renderHome);
+ $('#b-join').onclick=()=>renderJoin('');
+ $('#b-new').onclick=()=>{const q={id:uid(),title:'',description:'',settings:{shuffleQ:false,shuffleA:false,streak:true,showText:true},questions:[newQuestion('quiz')]};quizzes.unshift(q);saveQuizzes();renderEditor(q.id);};
+ $('#b-imp').onclick=importQuiz;
+ $$('.qcard').forEach(card=>{const id=card.dataset.id;card.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+  const q=quizzes.find(x=>x.id===id);const a=b.dataset.a;
+  if(a==='host')hostGame(id);else if(a==='practice')startPractice(id);else if(a==='edit')renderEditor(id);
+  else if(a==='dup'){const c=clone(q);c.id=uid();c.title=(q.title||t('untitled'))+' '+t('copySuffix');c.questions.forEach(x=>x.id=uid());quizzes.splice(quizzes.indexOf(q)+1,0,c);saveQuizzes();renderHome();}
+  else if(a==='exp')download(slug(q.title)+'.json',JSON.stringify(q,null,1),'application/json');
+  else if(a==='del'){if(confirm(t('confirmDelete',{name:q.title||t('untitled')}))){quizzes=quizzes.filter(x=>x.id!==id);saveQuizzes();renderHome();}}
+ });});}
+function validQuizObj(o){return o&&typeof o==='object'&&Array.isArray(o.questions)&&o.questions.every(q=>q&&TYPES[q.type]);}
+function importQuiz(){const fi=$('#filein');fi.accept='.json,application/json';fi.value='';fi.onchange=async()=>{const f=fi.files[0];if(!f)return;try{const data=JSON.parse(await f.text());const list=(Array.isArray(data)?data:[data]).filter(validQuizObj);if(!list.length)throw 0;
+ list.forEach(o=>{o.id=uid();o.questions=o.questions.map(q=>Object.assign(newQuestion(q.type),q,{id:uid()}));o.settings=Object.assign({shuffleQ:false,shuffleA:false,streak:true,showText:true},o.settings||{});quizzes.unshift(o);});saveQuizzes();toast(t('imported',{n:list.length}));renderHome();}catch(e){alert(t('importErr'));}};fi.click();}
+
+/* ================= EDITOR ================= */
+let ED=null;let saveT;
+function touch(){clearTimeout(saveT);saveT=setTimeout(saveQuizzes,400);renderEdList();}
+function renderEditor(id){
+ const quiz=quizzes.find(q=>q.id===id);if(!quiz)return renderHome();
+ ED={quiz,sel:Math.min(ED&&ED.quiz===quiz?ED.sel:0,quiz.questions.length-1)};
+ view(`<div class="ed">
+  <div class="ed-top"><button class="btn small dark" id="e-back">← ${esc(t('back'))}</button>
+   <input class="title" id="e-title" value="${esc(quiz.title)}" placeholder="${esc(t('untitled'))}" maxlength="80">
+   <button class="btn small" id="e-set">⚙️ ${esc(t('settings'))}</button>
+   <button class="btn small green" id="e-prac">🎓 ${esc(t('practice'))}</button>
+   <button class="btn small primary" id="e-host">▶ ${esc(t('host'))}</button></div>
+  <aside class="ed-list" id="e-list"></aside>
+  <main class="ed-main" id="e-main"></main></div>`);
+ $('#e-back').onclick=()=>{saveQuizzes();renderHome();};
+ $('#e-title').oninput=e=>{quiz.title=e.target.value;touch();};
+ $('#e-set').onclick=editSettings;
+ $('#e-prac').onclick=()=>{saveQuizzes();startPractice(quiz.id);};
+ $('#e-host').onclick=()=>{saveQuizzes();hostGame(quiz.id);};
+ renderEdList();renderEdMain();}
+function renderEdList(){const el=$('#e-list');if(!el||!ED)return;const qs=ED.quiz.questions;
+ el.innerHTML=qs.map((q,i)=>`<div class="ed-item ${i===ED.sel?'sel':''}" data-i="${i}"><span class="n">${i+1}.</span><span>${TYPES[q.type].icon}</span><span class="tx">${esc(q.text||t('type_'+q.type))}</span>${problem(q)?'<span class="warn">⚠</span>':''}</div>`).join('')+`<button class="btn ghost" id="e-add" style="width:100%;min-width:150px">＋ ${esc(t('addQuestion'))}</button>`;
+ $$('.ed-item',el).forEach(it=>it.onclick=()=>{ED.sel=+it.dataset.i;renderEdList();renderEdMain();});
+ $('#e-add').onclick=()=>pickType(type=>{const q=newQuestion(type);const last=ED.quiz.questions[ED.sel];if(last&&last.time&&TYPES[type].scored)q.time=last.time;ED.quiz.questions.splice(ED.sel+1,0,q);ED.sel++;touch();renderEdMain();});}
+function pickType(cb){const m=modal(`<h3>${esc(t('chooseType'))}</h3><div class="typepick">${Object.keys(TYPES).map(k=>`<button data-t="${k}"><span class="ic">${TYPES[k].icon}</span><b>${esc(t('type_'+k))}</b><span class="d">${esc(t('typeDesc_'+k))}</span></button>`).join('')}</div>`);
+ $$('[data-t]',m.el).forEach(b=>b.onclick=()=>{m.close();cb(b.dataset.t);});}
+function editSettings(){const q=ED.quiz;q.settings=Object.assign({shuffleQ:false,shuffleA:false,streak:true,showText:true},q.settings||{});const s=q.settings;
+ const m=modal(`<h3>⚙️ ${esc(t('settings'))}</h3><div class="field"><label>${esc(t('description'))}</label><textarea id="s-desc" rows="2" class="inp">${esc(q.description||'')}</textarea></div>
+ ${['shuffleQ','shuffleA','streak','showText'].map(k=>`<label class="chkrow"><input type="checkbox" data-k="${k}" ${s[k]?'checked':''}> ${esc(t(k))}</label>`).join('')}
+ <div style="text-align:right"><button class="btn primary" id="s-close">${esc(t('close'))}</button></div>`);
+ $('#s-desc',m.el).oninput=e=>{q.description=e.target.value;touch();};
+ $$('[data-k]',m.el).forEach(c=>c.onchange=()=>{s[c.dataset.k]=c.checked;touch();});
+ $('#s-close',m.el).onclick=m.close;}
+function renderEdMain(){
+ const main=$('#e-main');const qs=ED.quiz.questions;
+ if(!qs.length){main.innerHTML=`<div class="card" style="text-align:center"><button class="btn primary big" id="e-first">＋ ${esc(t('addQuestion'))}</button></div>`;$('#e-first').onclick=()=>$('#e-add').click();return;}
+ const q=qs[ED.sel];const pr=problem(q);const scoredType=TYPES[q.type].scored;
+ main.innerHTML=`<div class="card">
+  ${pr?`<div class="problem">⚠ ${esc(t(pr))}</div>`:''}
+  <div class="frow">
+   <div class="field" style="flex:2"><label>${esc(t('questionType'))}</label><select id="q-type">${Object.keys(TYPES).map(k=>`<option value="${k}" ${k===q.type?'selected':''}>${TYPES[k].icon} ${esc(t('type_'+k))}</option>`).join('')}</select><div class="hint">${esc(t('typeDesc_'+q.type))}</div></div>
+   ${q.type!=='slide'?`<div class="field"><label>${esc(t('timeLimit'))}</label><select id="q-time">${TIMES.map(s=>`<option value="${s}" ${s==q.time?'selected':''}>${esc(t('seconds',{n:s}))}</option>`).join('')}</select></div>`:''}
+   ${scoredType?`<div class="field"><label>${esc(t('points'))}</label><select id="q-pts">${[1,2,0].map(p=>`<option value="${p}" ${p==q.points?'selected':''}>${esc(t('pts'+p))}</option>`).join('')}</select></div>`:''}
+  </div>
+  <div class="field"><label>${esc(t('questionText'))}</label><textarea class="qtext" id="q-text" maxlength="300" placeholder="${esc(t('qTextPh'))}">${esc(q.text)}</textarea></div>
+  <div class="field"><label>${esc(t('image'))}</label><div class="imgbox">${q.image&&q.type!=='pin'?`<img src="${esc(q.image)}" alt="">`:''}
+   <button class="btn small dark" id="q-up">🖼 ${esc(t('uploadImage'))}</button><button class="btn small dark" id="q-url">🔗 ${esc(t('imageUrl'))}</button>${q.image?`<button class="btn small danger" id="q-rm">✕ ${esc(t('removeImage'))}</button>`:''}</div></div>
+  <div id="q-specific">${specificEditor(q)}</div>
+  <div class="qactions"><button class="btn small" id="q-mu" ${ED.sel===0?'disabled':''}>↑ ${esc(t('moveUp'))}</button><button class="btn small" id="q-md" ${ED.sel===qs.length-1?'disabled':''}>↓ ${esc(t('moveDown'))}</button><button class="btn small" id="q-dup">⧉ ${esc(t('duplicateQ'))}</button><button class="btn small danger" id="q-del">🗑 ${esc(t('deleteQ'))}</button></div>
+ </div>`;
+ const re=()=>{touch();renderEdMain();};
+ $('#q-type').onchange=e=>{qs[ED.sel]=changeType(q,e.target.value);re();};
+ if($('#q-time'))$('#q-time').onchange=e=>{q.time=+e.target.value;touch();};
+ if($('#q-pts'))$('#q-pts').onchange=e=>{q.points=+e.target.value;touch();};
+ $('#q-text').oninput=e=>{q.text=e.target.value;touch();updProblem();};
+ $('#q-up').onclick=()=>{const fi=$('#filein');fi.accept='image/*';fi.value='';fi.onchange=async()=>{const f=fi.files[0];if(!f)return;try{const r=await readImage(f);q.image=r.url;if(q.type==='pin')q.aspect=r.aspect;re();}catch(e){toast('⚠')}};fi.click();};
+ $('#q-url').onclick=()=>{const u=prompt(t('imageUrlPrompt'),q.image&&!q.image.startsWith('data:')?q.image:'');if(u&&/^https?:\/\//i.test(u.trim())){q.image=u.trim();re();}};
+ if($('#q-rm'))$('#q-rm').onclick=()=>{q.image='';re();};
+ $('#q-mu').onclick=()=>{qs.splice(ED.sel-1,0,qs.splice(ED.sel,1)[0]);ED.sel--;re();};
+ $('#q-md').onclick=()=>{qs.splice(ED.sel+1,0,qs.splice(ED.sel,1)[0]);ED.sel++;re();};
+ $('#q-dup').onclick=()=>{const c=clone(q);c.id=uid();qs.splice(ED.sel+1,0,c);ED.sel++;re();};
+ $('#q-del').onclick=()=>{qs.splice(ED.sel,1);ED.sel=Math.max(0,Math.min(ED.sel,qs.length-1));re();};
+ bindSpecific(q,re);}
+function updProblem(){const q=ED.quiz.questions[ED.sel];const pr=problem(q);const box=$('#e-main .problem');
+ if(pr){if(box)box.textContent='⚠ '+t(pr);else{const d=document.createElement('div');d.className='problem';d.textContent='⚠ '+t(pr);$('#e-main .card').prepend(d);}}else if(box)box.remove();}
+function specificEditor(q){
+ switch(q.type){
+ case 'quiz':case 'multi':case 'poll':return `<div class="flabel">${esc(t('answers'))}</div><div class="ans-grid">${q.answers.map((a,i)=>`<div class="ans-ed c${i}"><span class="shape">${SHAPES[i]}</span><input data-ans="${i}" value="${esc(a.text)}" placeholder="${esc(t('answerPh',{n:i+1}))}" maxlength="120">${q.type==='poll'?'':`<button class="chk ${a.correct?'on':''}" data-correct="${i}" title="${esc(t('markCorrect'))}">✓</button>`}${q.answers.length>2?`<button class="x" data-delans="${i}">×</button>`:''}</div>`).join('')}</div>${q.answers.length<6?`<button class="btn ghost small" id="addans" style="color:var(--ink)">＋ ${esc(t('addAnswer'))}</button>`:''}`;
+ case 'tf':return `<div class="flabel">${esc(t('correctAnswer'))}</div><div class="tfpick"><button class="c1 ${q.correct?'on':''}" data-tf="1">▲ ${esc(t('true'))}</button><button class="c0 ${!q.correct?'on':''}" data-tf="0">◆ ${esc(t('false'))}</button></div>`;
+ case 'type':return `<div class="flabel">${esc(t('acceptedAnswers'))}</div><div class="hint">${esc(t('acceptedHint'))}</div>${q.accepted.map((a,i)=>`<div class="listrow"><span class="num">${i+1}.</span><input class="inp" data-acc="${i}" value="${esc(a)}" maxlength="${q.maxLen}">${q.accepted.length>1?`<button class="x" data-delacc="${i}">×</button>`:''}</div>`).join('')}${q.accepted.length<8?`<button class="btn ghost small" id="addacc" style="color:var(--ink)">＋ ${esc(t('addAccepted'))}</button>`:''}<div class="field" style="margin-top:12px;max-width:200px"><label>${esc(t('maxLen'))}</label><input type="number" id="maxlen" min="1" max="100" value="${q.maxLen}"></div>`;
+ case 'slider':return `<div class="frow">${['min','max','step','correct','tol'].map(k=>`<div class="field"><label>${esc(t(k==='correct'?'correctValue':k==='tol'?'tolerance':k))}</label><input type="number" data-sl="${k}" value="${esc(q[k])}" step="any"></div>`).join('')}<div class="field"><label>${esc(t('unit'))}</label><input type="text" id="sl-unit" value="${esc(q.unit)}" maxlength="10"></div></div>`;
+ case 'order':return `<div class="flabel">${esc(t('orderItems'))}</div><div class="hint">${esc(t('orderHint'))}</div>${q.items.map((a,i)=>`<div class="listrow"><span class="num">${i+1}.</span><input class="inp" data-item="${i}" value="${esc(a)}" maxlength="80">${q.items.length>2?`<button class="x" data-delitem="${i}">×</button>`:''}</div>`).join('')}${q.items.length<8?`<button class="btn ghost small" id="additem" style="color:var(--ink)">＋ ${esc(t('addItem'))}</button>`:''}`;
+ case 'pin':return q.image?`<div class="hint">${esc(t('pinHint'))}</div><div class="pinedit" id="pinedit"><img src="${esc(q.image)}" alt="" id="pinimg"><div class="pinzone" id="pinzone"></div></div><div class="field" style="max-width:360px;margin-top:10px"><label>${esc(t('radius'))}</label><input type="range" id="pinr" min="0.02" max="0.4" step="0.01" value="${q.radius}" style="width:100%"></div>`:`<div class="problem">📍 ${esc(t('pinNeedsImage'))}</div>`;
+ case 'cloud':case 'open':return `<div class="field" style="max-width:200px"><label>${esc(t('maxLen'))}</label><input type="number" id="maxlen" min="1" max="${q.type==='open'?500:60}" value="${q.maxLen}"></div>`;
+ case 'slide':return `<div class="field"><label>${esc(t('slideBody'))}</label><textarea class="inp" id="sl-body" rows="5" maxlength="1000">${esc(q.body)}</textarea></div>`;}return '';}
+function bindSpecific(q,re){
+ const m=$('#q-specific');
+ $$('[data-ans]',m).forEach(inp=>inp.oninput=()=>{q.answers[+inp.dataset.ans].text=inp.value;touch();updProblem();});
+ $$('[data-correct]',m).forEach(b=>b.onclick=()=>{const i=+b.dataset.correct;if(q.type==='quiz')q.answers.forEach((a,k)=>a.correct=k===i);else q.answers[i].correct=!q.answers[i].correct;re();});
+ $$('[data-delans]',m).forEach(b=>b.onclick=()=>{const wasC=q.answers[+b.dataset.delans].correct;q.answers.splice(+b.dataset.delans,1);if(q.type==='quiz'&&wasC)q.answers[0].correct=true;re();});
+ if($('#addans'))$('#addans').onclick=()=>{q.answers.push(q.type==='poll'?{text:''}:{text:'',correct:false});re();};
+ $$('[data-tf]',m).forEach(b=>b.onclick=()=>{q.correct=b.dataset.tf==='1';re();});
+ $$('[data-acc]',m).forEach(inp=>inp.oninput=()=>{q.accepted[+inp.dataset.acc]=inp.value;touch();updProblem();});
+ $$('[data-delacc]',m).forEach(b=>b.onclick=()=>{q.accepted.splice(+b.dataset.delacc,1);re();});
+ if($('#addacc'))$('#addacc').onclick=()=>{q.accepted.push('');re();};
+ if($('#maxlen'))$('#maxlen').oninput=e=>{const v=Math.max(1,Math.min(+e.target.max,parseInt(e.target.value)||1));q.maxLen=v;touch();};
+ $$('[data-sl]',m).forEach(inp=>inp.oninput=()=>{q[inp.dataset.sl]=inp.value===''?'':Number(inp.value);touch();updProblem();});
+ if($('#sl-unit'))$('#sl-unit').oninput=e=>{q.unit=e.target.value;touch();};
+ $$('[data-item]',m).forEach(inp=>inp.oninput=()=>{q.items[+inp.dataset.item]=inp.value;touch();updProblem();});
+ $$('[data-delitem]',m).forEach(b=>b.onclick=()=>{q.items.splice(+b.dataset.delitem,1);re();});
+ if($('#additem'))$('#additem').onclick=()=>{q.items.push('');re();};
+ if($('#sl-body'))$('#sl-body').oninput=e=>{q.body=e.target.value;touch();updProblem();};
+ const pe=$('#pinedit');
+ if(pe){const img=$('#pinimg'),zone=$('#pinzone');
+  const draw=()=>{zone.style.left=q.target.x*100+'%';zone.style.top=q.target.y*100+'%';zone.style.width=q.radius*200+'%';};draw();
+  img.onload=()=>{const a=img.naturalHeight/img.naturalWidth;if(a&&isFinite(a)&&Math.abs(a-(q.aspect||0))>.001){q.aspect=a;touch();}};
+  pe.onclick=e=>{const r=img.getBoundingClientRect();q.target={x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))};draw();touch();};
+  $('#pinr').oninput=e=>{q.radius=+e.target.value;draw();touch();};}}
+function readImage(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const M=1000;let w=img.naturalWidth||800,h=img.naturalHeight||600;const s=Math.min(1,M/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);res({url:c.toDataURL('image/jpeg',.82),aspect:h/w});};img.onerror=rej;img.src=fr.result;};fr.onerror=rej;fr.readAsDataURL(file);});}
+
+/* ================= shared answer UI ================= */
+function answerUI(el,p,submit){
+ let done=false;const send=v=>{if(done)return;done=true;submit(v);};
+ const tiles=(labels,cls)=>`<div class="tiles">${labels.map((a,i)=>`<button class="tile ${cls?cls[i]:'c'+i}" data-i="${i}"><span class="shape">${SHAPES[cls?(i===0?0:1):i]}</span><span>${esc(a)}</span></button>`).join('')}</div>`;
+ switch(p.type){
+ case 'quiz':case 'poll':el.innerHTML=tiles(p.answers);$$('.tile',el).forEach(b=>b.onclick=()=>send(+b.dataset.i));break;
+ case 'tf':el.innerHTML=`<div class="tiles"><button class="tile c1" data-v="1"><span class="shape">▲</span><span>${esc(t('true'))}</span></button><button class="tile c0" data-v="0"><span class="shape">◆</span><span>${esc(t('false'))}</span></button></div>`;$$('.tile',el).forEach(b=>b.onclick=()=>send(b.dataset.v==='1'));break;
+ case 'multi':{const sel=new Set();el.innerHTML=`<div class="hint" style="color:#fff;text-align:center;font-weight:700">${esc(t('pickAll'))}</div>${tiles(p.answers)}<div class="submitrow"><button class="btn primary big" id="a-sub" disabled>${esc(t('submit'))}</button></div>`;
+  $$('.tile',el).forEach(b=>b.onclick=()=>{const i=+b.dataset.i;sel.has(i)?sel.delete(i):sel.add(i);b.classList.toggle('sel');$('#a-sub',el).disabled=!sel.size;});
+  $('#a-sub',el).onclick=()=>send([...sel].sort((a,b)=>a-b));break;}
+ case 'type':case 'cloud':case 'open':{const ta=p.type==='open';el.innerHTML=`${ta?`<textarea class="bigin" id="a-in" maxlength="${p.maxLen}" placeholder="${esc(t('typeHere'))}"></textarea>`:`<input class="bigin" id="a-in" maxlength="${p.maxLen}" placeholder="${esc(t('typeHere'))}" autocomplete="off" autocapitalize="off" spellcheck="false">`}<div class="submitrow"><button class="btn primary big" id="a-sub" disabled>${esc(t('submit'))}</button></div>`;
+  const inp=$('#a-in',el),sb=$('#a-sub',el);inp.oninput=()=>sb.disabled=!inp.value.trim();sb.onclick=()=>{if(inp.value.trim())send(inp.value.trim().slice(0,p.maxLen));};
+  if(!ta)inp.onkeydown=e=>{if(e.key==='Enter'&&inp.value.trim())sb.click();};setTimeout(()=>inp.focus(),50);break;}
+ case 'slider':{const mn=p.min,mx=p.max,st=p.step;const mid=mn+Math.round(((mx-mn)/2)/st)*st;const dec=(String(st).split('.')[1]||'').length;
+  el.innerHTML=`<div class="slval" id="a-val"></div><input type="range" class="bigr" id="a-r" min="${mn}" max="${mx}" step="${st}" value="${mid}"><div class="slminmax"><span>${mn}</span><span>${mx}</span></div><div class="submitrow"><button class="btn primary big" id="a-sub">${esc(t('submit'))}</button></div>`;
+  const r=$('#a-r',el),out=$('#a-val',el);const upd=()=>out.textContent=Number(r.value).toFixed(dec)+(p.unit?' '+p.unit:'');r.oninput=upd;upd();$('#a-sub',el).onclick=()=>send(Number(Number(r.value).toFixed(dec)));break;}
+ case 'order':{let ord=p.items.slice();const draw=()=>{el.innerHTML=`<div class="order">${ord.map((it,k)=>`<div class="ord-item c${it.id%6}"><span class="num">${k+1}</span><span class="txt">${esc(it.text)}</span><button data-up="${k}" ${k===0?'disabled':''}>▲</button><button data-dn="${k}" ${k===ord.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div class="submitrow"><button class="btn primary big" id="a-sub">${esc(t('submit'))}</button></div>`;
+   $$('[data-up]',el).forEach(b=>b.onclick=()=>{const k=+b.dataset.up;[ord[k-1],ord[k]]=[ord[k],ord[k-1]];draw();});
+   $$('[data-dn]',el).forEach(b=>b.onclick=()=>{const k=+b.dataset.dn;[ord[k+1],ord[k]]=[ord[k],ord[k+1]];draw();});
+   $('#a-sub',el).onclick=()=>send(ord.map(x=>x.id));};draw();break;}
+ case 'pin':{let pos=null;el.innerHTML=`<div class="hint" style="color:#fff;text-align:center;font-weight:700">${esc(t('tapImage'))}</div><div class="pinwrap" id="a-pw"><img src="${esc(p.image)}" alt="" draggable="false"><div class="pinmark" id="a-pm" hidden>📍</div></div><div class="submitrow"><button class="btn primary big" id="a-sub" disabled>${esc(t('submit'))}</button></div>`;
+  const pw=$('#a-pw',el),img=$('img',pw),pm=$('#a-pm',el);
+  pw.onclick=e=>{const r=img.getBoundingClientRect();pos={x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))};pm.hidden=false;pm.style.left=pos.x*100+'%';pm.style.top=pos.y*100+'%';$('#a-sub',el).disabled=false;};
+  $('#a-sub',el).onclick=()=>{if(pos)send({x:+pos.x.toFixed(4),y:+pos.y.toFixed(4)});};break;}
+ }}
+
+/* ================= HOST ================= */
+let H=null;
+function hostGame(quizId){
+ const quiz=quizzes.find(q=>q.id===quizId);if(!quiz)return;
+ if(!peerOk()){alert(t('netMissing'));return;}
+ const prep=prepareQuiz(quiz);if(!prep)return;
+ H={quiz:prep,title:prep.title,settings:prep.settings,quizId,i:-1,players:new Map(),cidToPid:new Map(),banned:new Set(),state:'connecting',answers:new Map(),timer:null,net:null,pin:null};
+ view(`<div class="host"><div class="center"><div class="spinner"></div><h2>${esc(t('connecting'))}</h2><button class="btn dark" id="h-cancel">${esc(t('back'))}</button></div></div>`);
+ $('#h-cancel').onclick=hostExit;hostConnect();}
+function hostConnect(){
+ H.pin=String(Math.floor(100000+Math.random()*900000));
+ const myH=H;
+ H.net=makeHostNet(H.pin,{
+  ready(){if(H!==myH)return;if(H.state==='connecting'){H.state='lobby';renderLobby();}},
+  msg(cid,m){if(H===myH)hostMsg(cid,m);},
+  close(cid){if(H!==myH)return;const pid=H.cidToPid.get(cid);const p=pid&&H.players.get(pid);if(p&&p.cid===cid){p.online=false;p.cid=null;if(H.state==='lobby')renderLobbyNames();else maybeAllAnswered();}},
+  error(e){if(H!==myH)return;if(e&&e.type==='unavailable-id'&&H.state==='connecting'){H.net.close();hostConnect();return;}
+   if(H.state==='connecting'){view(`<div class="host"><div class="center"><div class="emo">⚠️</div><h2>${esc(t('netError',{e:(e&&(e.type||e.message))||e}))}</h2><button class="btn" id="h-cancel">${esc(t('home'))}</button></div></div>`);$('#h-cancel').onclick=hostExit;}
+   else toast(t('netError',{e:(e&&(e.type||e.message))||e}));}});}
+function hostExit(){if(H){clearInterval(H.timer);clearTimeout(H.readyT);try{H.net&&H.net.close();}catch(e){}}H=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});renderHome();}
+function joinUrl(){const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('pin',H.pin);if(LOCAL)u.searchParams.set('local','1');return u.toString();}
+function hbar(extra){return `<div class="hbar"><span>🎯 ${esc(H.title)}</span><span class="spacer"></span>${extra||''}<span>PIN: ${H.pin}</span><button class="btn small dark" id="h-fs" title="${esc(t('fullscreen'))}">⛶</button><button class="btn small dark" id="h-x" title="${esc(t('home'))}">✕</button></div>`;}
+function bindHbar(){$('#h-fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});};$('#h-x').onclick=()=>{if(H.state==='lobby'||H.state==='podium'||confirm(t('leaveConfirm')))hostExit();};}
+function renderLobby(){
+ const url=joinUrl();let qr='';
+ try{if(typeof qrcode!=='undefined'){const q=qrcode(0,'M');q.addData(url);q.make();qr=q.createSvgTag({cellSize:4,margin:2,scalable:true});}}catch(e){}
+ const shown=url.replace(/^https?:\/\//,'').replace(/[?&]pin=\d+/,'').replace(/[?&]local=1/,'').replace(/\?$/,'');
+ view(`<div class="host">${hbar()}
+  <div class="lobby-top"><div class="joininfo"><div>${esc(t('joinAt'))}</div><div class="url">${esc(shown)}</div><div class="pinlabel">${esc(t('gamePin'))}</div><div class="pin">${H.pin.slice(0,3)} ${H.pin.slice(3)}</div></div>${qr?`<div class="qr">${qr}</div>`:''}</div>
+  <div class="lobby-mid"><div class="count" id="h-count">👥 0</div><h2>${esc(t('waitingPlayers'))}</h2><button class="btn primary big" id="h-start" disabled>${esc(t('start'))} ▶</button></div>
+  <div class="names" id="h-names"></div></div>`);
+ bindHbar();$('#h-start').onclick=()=>hostNext();renderLobbyNames();}
+function renderLobbyNames(){const el=$('#h-names');if(!el)return;const ps=[...H.players.values()];
+ el.innerHTML=ps.length?ps.map(p=>`<button class="nm ${p.online?'':'off'}" data-pid="${esc(p.pid)}">${esc(p.name)}</button>`).join(''):`<div class="note">${esc(t('nobody'))}</div>`;
+ $('#h-count').textContent='👥 '+ps.filter(p=>p.online).length;$('#h-start').disabled=!ps.length;
+ $$('.nm',el).forEach(b=>b.onclick=()=>{const p=H.players.get(b.dataset.pid);if(p&&confirm(t('kickConfirm',{name:p.name})))kick(p);});}
+function kick(p){H.banned.add(p.pid);if(p.cid)H.net.send(p.cid,{t:'kicked'});H.players.delete(p.pid);renderLobbyNames();}
+function broadcast(m){for(const p of H.players.values())if(p.online&&p.cid)H.net.send(p.cid,m);}
+function sanitize(v){if(typeof v==='string')return v.slice(0,500);if(typeof v==='number'||typeof v==='boolean')return v;if(Array.isArray(v))return v.slice(0,10).map(Number);if(v&&typeof v==='object')return {x:Number(v.x),y:Number(v.y)};return undefined;}
+function hostMsg(cid,m){
+ if(!m||typeof m!=='object')return;
+ if(m.t==='join'){
+  const pid=String(m.pid||cid).slice(0,40);
+  if(H.banned.has(pid)){H.net.send(cid,{t:'kicked'});return;}
+  let p=H.players.get(pid);
+  if(!p){const base=String(m.name||'').trim().slice(0,20)||t('player');const names=new Set([...H.players.values()].map(x=>x.name.toLowerCase()));let nm=base,k=2;while(names.has(nm.toLowerCase()))nm=base+' '+(k++);
+   p={pid,name:nm,score:0,streak:0,res:[],online:true,cid};H.players.set(pid,p);}
+  else{p.online=true;p.cid=cid;}
+  H.cidToPid.set(cid,pid);
+  H.net.send(cid,{t:'welcome',name:p.name,title:H.title,score:p.score});
+  if(H.state==='lobby')renderLobbyNames();
+  else if(H.state==='question'&&!H.answers.has(pid)){const left=H.cur.time-(Date.now()-H.qStart)/1000;H.net.send(cid,Object.assign({},H.curMsg,{left}));}
+  else if(H.state==='podium')sendEnd(p,rankPlayers());
+  else H.net.send(cid,{t:'wait'});
+ }else if(m.t==='ans'){
+  const pid=H.cidToPid.get(cid);const p=pid&&H.players.get(pid);if(!p||H.players.get(pid).cid!==cid)return;
+  if(H.state!=='question'||m.i!==H.i||H.answers.has(pid))return;
+  H.answers.set(pid,{v:sanitize(m.v),ms:Date.now()-H.qStart});
+  H.net.send(cid,{t:'got'});
+  const c=$('#hq-ans');if(c)c.textContent=H.answers.size;
+  maybeAllAnswered();}}
+function maybeAllAnswered(){if(!H||H.state!=='question')return;const on=[...H.players.values()].filter(p=>p.online);if(on.length&&on.every(p=>H.answers.has(p.pid))){clearTimeout(H.allT);H.allT=setTimeout(()=>hostEndQuestion(),500);}}
+function rankPlayers(){return [...H.players.values()].sort((a,b)=>b.score-a.score);}
+function hostNext(){
+ clearInterval(H.timer);H.i++;
+ if(H.i>=H.quiz.qs.length)return hostPodium();
+ const q=H.quiz.qs[H.i];H.cur=q;H.answers=new Map();
+ if(q.type==='slide'){H.state='slide';broadcast({t:'slide'});return renderHostSlide(q);}
+ H.state='ready';broadcast({t:'ready',i:H.i,n:H.quiz.qs.length});
+ view(`<div class="host">${hbar()}<div class="ready"><div class="pill">${esc(t('questionNofM',{i:H.i+1,n:H.quiz.qs.length}))} · ${TYPES[q.type].icon} ${esc(t('type_'+q.type))}</div><div class="qt">${esc(q.text)}</div><div class="bar3"><i></i></div></div></div>`);bindHbar();
+ clearTimeout(H.readyT);H.readyT=setTimeout(()=>{if(H&&H.state==='ready'&&H.cur===q)hostAsk(q);},3000);}
+function renderHostSlide(q){
+ view(`<div class="host">${hbar()}<div class="slideview"><div class="st">${esc(q.text)}</div>${q.image?`<img src="${esc(q.image)}" alt="">`:''}<div class="sb">${esc(q.body)}</div></div><div class="hfoot"><button class="btn primary big" id="h-next">${esc(t('next'))} ▶</button></div></div>`);bindHbar();$('#h-next').onclick=hostNext;}
+function hostAsk(q){
+ H.state='question';H.qStart=Date.now();
+ H.curMsg={t:'q',i:H.i,n:H.quiz.qs.length,q:publicQ(q,H.settings)};
+ broadcast(H.curMsg);
+ const tileTypes=['quiz','multi','poll','tf'];
+ let mid;
+ if(q.type==='pin') mid=`<div class="hq-img"><img src="${esc(q.image)}" alt=""></div>`;
+ else if(q.image) mid=`<div class="hq-img"><img src="${esc(q.image)}" alt=""></div>`;
+ else if(tileTypes.includes(q.type)) mid=`<div class="hq-hint"><span class="big">${TYPES[q.type].icon}</span></div>`;
+ else mid=`<div class="hq-hint"><span class="big">${TYPES[q.type].icon}</span>${esc(t('answerOnDevice'))}</div>`;
+ let bottom='';
+ if(q.type==='tf') bottom=`<div class="tiles"><div class="tile c1"><span class="shape">▲</span>${esc(t('true'))}</div><div class="tile c0"><span class="shape">◆</span>${esc(t('false'))}</div></div>`;
+ else if(['quiz','multi','poll'].includes(q.type)) bottom=`<div class="tiles">${q.answers.map((a,i)=>`<div class="tile c${i}"><span class="shape">${SHAPES[i]}</span>${esc(a.text)}</div>`).join('')}</div>`;
+ else if(q.type==='order') bottom=`<div class="tiles">${H.curMsg.q.items.map(it=>`<div class="tile c${it.id%6}">${esc(it.text)}</div>`).join('')}</div>`;
+ else if(q.type==='slider') bottom=`<div class="summary">${q.min} ⟷ ${q.max} ${esc(q.unit)}</div>`;
+ view(`<div class="host">${hbar(`<span>${esc(t('questionNofM',{i:H.i+1,n:H.quiz.qs.length}))}</span>`)}<div class="hq">
+  <div class="hq-text">${esc(q.text)}</div>
+  <div class="hq-mid"><div class="side"><div class="timer" id="hq-timer">${q.time}</div></div>${mid}<div class="side"><div class="answered" id="hq-ans">0</div><div>${esc(t('answersCount'))}</div><button class="btn small" id="hq-skip">${esc(t('skip'))} ⏭</button></div></div>
+  ${bottom}</div></div>`);
+ bindHbar();$('#hq-skip').onclick=()=>hostEndQuestion();
+ H.timer=setInterval(()=>{const left=q.time-(Date.now()-H.qStart)/1000;const el=$('#hq-timer');if(el)el.textContent=Math.max(0,Math.ceil(left));if(left<=0)hostEndQuestion();},200);}
+function hostEndQuestion(){
+ if(!H||H.state!=='question')return;clearInterval(H.timer);clearTimeout(H.allT);H.state='reveal';
+ const q=H.cur;const scored=isScored(q);
+ for(const p of H.players.values()){
+  const a=H.answers.get(p.pid);let ok=null;
+  if(a){try{ok=evaluate(q,a.v);}catch(e){ok=false;}}else if(TYPES[q.type].scored)ok=false;
+  let gained=0;
+  if(scored){if(ok){p.streak++;gained=calcPoints(q,a.ms);if(H.settings.streak&&p.streak>1)gained+=Math.min(p.streak-1,5)*100;}else p.streak=0;}
+  p.score+=gained;p.res[H.i]={v:a?a.v:undefined,ok,gained,answered:!!a};}
+ const ranked=rankPlayers();const ct=correctText(q);
+ ranked.forEach((p,idx)=>{if(p.online&&p.cid){const r=p.res[H.i];H.net.send(p.cid,{t:'res',ok:r.ok,answered:r.answered,gained:r.gained,score:p.score,rank:idx+1,streak:p.streak,scored:TYPES[q.type].scored,correct:ct});}});
+ renderHostReveal(q);}
+function bars(items){const mx=Math.max(1,...items.map(x=>x.n));return items.map(x=>`<div class="col"><div class="cnt">${x.n}${x.correct?' ✓':''}</div><div class="b c${x.c}" style="height:${Math.round(x.n/mx*75)+3}%;${x.dim?'opacity:.35':''}"></div><div class="lab c${x.c}" style="${x.dim?'opacity:.35':''}">${x.shape||SHAPES[x.c]} ${esc(x.label).slice(0,40)}</div></div>`).join('');}
+function revealBody(q){
+ const entries=[...H.answers.values()];const vals=entries.map(a=>a.v);
+ switch(q.type){
+ case 'quiz':case 'multi':case 'poll':{const cnt=q.answers.map(()=>0);vals.forEach(v=>(Array.isArray(v)?v:[v]).forEach(i=>{if(cnt[i]!==undefined)cnt[i]++;}));
+  return bars(q.answers.map((a,i)=>({label:a.text,n:cnt[i],correct:q.type!=='poll'&&a.correct,dim:q.type!=='poll'&&!a.correct,c:i})));}
+ case 'tf':{const y=vals.filter(v=>v===true).length,n=vals.filter(v=>v===false).length;return bars([{label:t('true'),n:y,correct:q.correct,dim:!q.correct,c:1,shape:'▲'},{label:t('false'),n,correct:!q.correct,dim:q.correct,c:0,shape:'◆'}]);}
+ case 'type':case 'cloud':{const g=new Map();vals.forEach(v=>{if(typeof v!=='string'||!v.trim())return;const k=norm(v);const e=g.get(k)||{text:v.trim(),n:0};e.n++;g.set(k,e);});const list=[...g.values()].sort((a,b)=>b.n-a.n);
+  if(!list.length)return `<div class="summary">${esc(t('noAnswers'))}</div>`;
+  if(q.type==='type')return `<div class="typelist"><div class="r ok"><span>✓ ${esc(correctText(q))}</span></div>${list.slice(0,12).map(e=>{const ok=evaluate(q,e.text);return `<div class="r ${ok?'ok':''}"><span>${ok?'✓':'✗'} ${esc(e.text)}</span><span>${e.n}</span></div>`;}).join('')}</div>`;
+  const mx=list[0].n;const cols=['#e21b3c','#1368ce','#d89e00','#26890c','#864cbf','#0a8f8f','#c2185b','#5d4037'];
+  return `<div class="cloud">${shuffle(list.slice(0,60)).map((e,i)=>`<span style="font-size:${(1+2.6*(e.n/mx)).toFixed(2)}em;color:${cols[i%cols.length]}">${esc(e.text)}</span>`).join('')}</div>`;}
+ case 'open':{const list=vals.filter(v=>typeof v==='string'&&v.trim());return list.length?`<div class="opengrid">${shuffle(list).map(v=>`<div>${esc(v)}</div>`).join('')}</div>`:`<div class="summary">${esc(t('noAnswers'))}</div>`;}
+ case 'slider':{const mn=+q.min,mx=+q.max;const pct=v=>((v-mn)/(mx-mn)*100);const stack={};
+  const dots=vals.filter(v=>typeof v==='number'&&isFinite(v)).map(v=>{const k=Math.round(pct(v));stack[k]=(stack[k]||0)+1;return `<div class="dot" style="left:${pct(v)}%;top:${80-(stack[k]-1)*14}px"></div>`;}).join('');
+  const tol=+q.tol||0;return `<div class="nline"><div class="axis"></div><div class="band" style="left:${pct(+q.correct)}%;width:${Math.max(0.6,tol*2/(mx-mn)*100)}%"></div>${dots}<div class="cv" style="left:${pct(+q.correct)}%">${esc(correctText(q))}</div><div class="tk" style="left:0">${mn}</div><div class="tk" style="left:100%">${mx}</div></div>`;}
+ case 'order':return `<div class="orderlist">${q.items.map((s,i)=>`<div>${i+1}. ${esc(s)}</div>`).join('')}</div>`;
+ case 'pin':{const z=`<div class="pinzone" style="left:${q.target.x*100}%;top:${q.target.y*100}%;width:${q.radius*200}%"></div>`;
+  const dots=vals.filter(v=>v&&typeof v==='object').map(v=>`<div class="dot" style="left:${v.x*100}%;top:${v.y*100}%;background:${evaluate(q,v)?'#26890c':'#e21b3c'}"></div>`).join('');
+  return `<div class="pinview"><img src="${esc(q.image)}" alt="">${z}${dots}</div>`;}}
+ return '';}
+function renderHostReveal(q){
+ const scoredT=TYPES[q.type].scored;const total=H.players.size;const c=[...H.players.values()].filter(p=>p.res[H.i]&&p.res[H.i].ok).length;
+ view(`<div class="host">${hbar(`<span>${esc(t('questionNofM',{i:H.i+1,n:H.quiz.qs.length}))}</span>`)}<div class="hq">
+  <div class="hq-text">${esc(q.text)}</div>
+  <div class="reveal-body">${revealBody(q)}</div>
+  ${scoredT?`<div class="summary">${esc(t('correctN',{c,n:total}))}</div>`:''}
+ </div><div class="hfoot"><button class="btn primary big" id="h-next">${esc(t('next'))} ▶</button></div></div>`);
+ bindHbar();$('#h-next').onclick=()=>{if(isScored(q)&&H.i<H.quiz.qs.length-1)renderBoard();else hostNext();};}
+function renderBoard(){
+ H.state='board';const r=rankPlayers().slice(0,5);
+ view(`<div class="host">${hbar()}<h1 style="text-align:center;margin:18px 0 0">${esc(t('scoreboard'))}</h1><div class="board">${r.map((p,i)=>{const g=p.res[H.i]?p.res[H.i].gained:0;return `<div class="r ${i===0?'first':''}" style="animation-delay:${i*.08}s"><span class="rk">${i+1}.</span><span class="nm">${esc(p.name)}${p.streak>1?' 🔥'+p.streak:''}</span>${g?`<span class="gain">+${g}</span>`:''}<span>${p.score}</span></div>`;}).join('')}</div><div class="spacer"></div><div class="hfoot"><button class="btn primary big" id="h-next">${esc(t('next'))} ▶</button></div></div>`);
+ bindHbar();$('#h-next').onclick=hostNext;}
+function sendEnd(p,ranked){if(p.online&&p.cid)H.net.send(p.cid,{t:'end',rank:ranked.indexOf(p)+1,score:p.score,n:ranked.length});}
+function hostPodium(){
+ H.state='podium';const r=rankPlayers();r.forEach(p=>sendEnd(p,r));
+ const pod=(p,k)=>p?`<div class="pod p${k}"><div class="nm">${esc(p.name)}</div><div class="blk">${k}<small>${p.score}</small></div></div>`:'';
+ const scoredIdx=H.quiz.qs.map((q,i)=>TYPES[q.type].scored?i:-1).filter(i=>i>=0);
+ view(`<div class="host">${hbar()}<h1 style="text-align:center;margin:16px 0 0">🏆 ${esc(t('gameOver'))}</h1>
+  <div class="podium">${pod(r[1],2)}${pod(r[0],1)}${pod(r[2],3)}</div>
+  <div class="wrap" style="width:100%"><div class="card"><h3 style="margin-top:0">${esc(t('results'))}</h3><table class="res"><tr><th>#</th><th>${esc(t('player'))}</th><th>${esc(t('score'))}</th><th>${esc(t('correctCount'))}</th></tr>${r.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.score}</td><td>${scoredIdx.filter(k=>p.res[k]&&p.res[k].ok).length} / ${scoredIdx.length}</td></tr>`).join('')}</table>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn primary" id="h-csv">⬇ ${esc(t('downloadCsv'))}</button><button class="btn dark" id="h-again">🔁 ${esc(t('retry'))}</button><button class="btn" id="h-home" style="border:1px solid var(--line)">🏠 ${esc(t('home'))}</button></div></div></div></div>`);
+ bindHbar();$('#h-csv').onclick=exportCsv;$('#h-home').onclick=hostExit;$('#h-again').onclick=()=>{const id=H.quizId;hostExit();hostGame(id);};}
+function fmtAns(q,v){if(v===undefined)return '';switch(q.type){case 'quiz':case 'poll':return q.answers[v]?q.answers[v].text:'';case 'multi':return Array.isArray(v)?v.map(i=>q.answers[i]?q.answers[i].text:'').join(' + '):'';case 'tf':return t(v?'true':'false');case 'order':return Array.isArray(v)?v.map(i=>q.items[i]).join(' > '):'';case 'pin':return v?`(${Math.round(v.x*100)}%, ${Math.round(v.y*100)}%)`:'';default:return String(v);}}
+function exportCsv(){
+ const qs=H.quiz.qs;const cell=s=>'"'+String(s??'').replace(/"/g,'""')+'"';const r=rankPlayers();
+ const idx=qs.map((q,i)=>q.type==='slide'?-1:i).filter(i=>i>=0);
+ const head=['#',t('player'),t('score'),t('correctCount'),...idx.map(i=>`${i+1}. ${qs[i].text}`)];
+ const rows=r.map((p,k)=>[k+1,p.name,p.score,idx.filter(i=>p.res[i]&&p.res[i].ok).length,...idx.map(i=>{const x=p.res[i];if(!x)return '';const mark=x.ok===true?'✓ ':x.ok===false?'✗ ':'';return mark+fmtAns(qs[i],x.v)+(x.gained?` (+${x.gained})`:'');})]);
+ download(slug(H.title)+'-rezultati.csv','﻿'+[head,...rows].map(row=>row.map(cell).join(';')).join('\r\n'),'text/csv;charset=utf-8');}
+addEventListener('beforeunload',e=>{if(H&&H.state!=='lobby'&&H.state!=='podium'&&H.state!=='connecting'){e.preventDefault();e.returnValue='';}});
+
+/* ================= PLAYER ================= */
+let P=null;
+function renderJoin(pin){
+ document.documentElement.lang=LANG;
+ const lastName=localStorage.getItem('ka.name')||'';
+ view(`<div class="pl"><div class="topbar"><div class="logo">🎯 ${esc(t('appName'))}</div><div class="spacer"></div>${langSelect()}</div>
+  <div class="center"><form class="joinbox" id="j-form"><input id="j-pin" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="${esc(t('enterPin'))}" value="${esc(pin)}" autocomplete="off"><input id="j-name" maxlength="20" placeholder="${esc(t('enterName'))}" value="${esc(lastName)}" autocomplete="off"><button class="btn primary big" type="submit">${esc(t('enter'))}</button></form>
+  ${PARAMS.get('pin')?'':`<button class="btn dark small" id="j-back">← ${esc(t('home'))}</button>`}</div></div>`);
+ bindLang(()=>renderJoin($('#j-pin').value));
+ if($('#j-back'))$('#j-back').onclick=renderHome;
+ setTimeout(()=>(pin?$('#j-name'):$('#j-pin')).focus(),50);
+ $('#j-form').onsubmit=e=>{e.preventDefault();const p=$('#j-pin').value.replace(/\D/g,'');const n=$('#j-name').value.trim();if(p.length!==6){$('#j-pin').focus();return;}if(!n){$('#j-name').focus();return;}localStorage.setItem('ka.name',n);playerConnect(p,n);};}
+function playerConnect(pin,name){
+ if(!peerOk()){alert(t('netMissing'));return;}
+ if(P&&P.net)P.net.close();
+ let pid=sessionStorage.getItem('ka.pid.'+pin);if(!pid){pid=uid();sessionStorage.setItem('ka.pid.'+pin,pid);}
+ P={pin,name,pid,score:0,state:'connecting',welcomed:false};const me=P;
+ plCenter(`<div class="spinner"></div><h2>${esc(t('connecting'))}</h2>`);
+ P.net=makePlayerNet(pin,{
+  open(){if(P===me)P.net.send({t:'join',name,pid});},
+  msg(m){if(P===me)playerMsg(m);},
+  close(){if(P===me&&!['end','kicked'].includes(P.state))playerError(t('connLost'),true);},
+  error(e){if(P!==me)return;if(e&&e.type==='peer-unavailable')playerError(t('gameNotFound'),false);else if(!['end','kicked'].includes(P.state))playerError(t('netError',{e:(e&&(e.type||e.message))||e}),true);}});
+ clearTimeout(P.to);P.to=setTimeout(()=>{if(P===me&&!P.welcomed){P.net.close();playerError(t('gameNotFound'),false);}},LOCAL?4000:15000);}
+function pbar(){return `<div class="pbar"><span>${esc(P.name)}</span><span class="spacer"></span><span class="sc">${P.score}</span></div>`;}
+function plCenter(inner,withBar){clearInterval(P&&P.tick);view(`<div class="pl">${withBar&&P&&P.welcomed?pbar():''}<div class="center">${inner}</div></div>`);}
+function playerError(msg,canRetry){if(!P)return;clearTimeout(P.to);P.state='error';const {pin,name}=P;
+ plCenter(`<div class="emo">😕</div><h2>${esc(msg)}</h2>${canRetry?`<button class="btn primary big" id="p-retry">${esc(t('tryAgain'))}</button>`:''}<button class="btn dark" id="p-home">${esc(t('back'))}</button>`);
+ if($('#p-retry'))$('#p-retry').onclick=()=>playerConnect(pin,name);
+ $('#p-home').onclick=()=>{try{P.net.close();}catch(e){}P=null;renderJoin(pin);};}
+function playerMsg(m){
+ if(!m||typeof m!=='object')return;
+ switch(m.t){
+ case 'welcome':clearTimeout(P.to);P.welcomed=true;P.name=m.name;P.score=m.score||0;P.state='lobby';
+  plCenter(`<div class="emo">🎉</div><h1>${esc(t('youreIn'))}</h1><h2 style="margin:0">${esc(P.name)}</h2><p>${esc(t('seeName'))}</p><p class="note">${esc(m.title)}</p>`,true);break;
+ case 'ready':P.state='ready';plCenter(`<div class="pill" style="background:#fff;color:var(--ink);border-radius:30px;padding:.4em 1.2em;font-weight:800">${esc(t('questionNofM',{i:m.i+1,n:m.n}))}</div><h1>${esc(t('getReady'))}</h1><div class="spinner"></div>`,true);break;
+ case 'q':playerQuestion(m);break;
+ case 'got':P.state='sent';plCenter(`<div class="spinner"></div><h2>${esc(t('answerSent'))}</h2><p>${esc(t('waitOthers'))}</p>`,true);break;
+ case 'res':playerResult(m);break;
+ case 'slide':case 'wait':P.state='wait';plCenter(`<div class="emo">👀</div><h2>${esc(t('lookAtScreen'))}</h2>`,true);break;
+ case 'end':P.state='end';P.score=m.score;plCenter(`<div class="emo">${m.rank===1?'🏆':m.rank<=3?'🥇🥈🥉'.slice((m.rank-1)*2,(m.rank)*2):'⭐'}</div><h1>${esc(t('gameOver'))}</h1><h2 style="margin:0">${esc(t('place',{n:m.rank}))} ${esc(t('of'))} ${m.n}</h2><p style="font-size:1.3em;font-weight:800">${esc(t('yourScore',{n:m.score}))}</p><button class="btn dark" id="p-home">${esc(t('home'))}</button>`,true);
+  $('#p-home').onclick=()=>{try{P.net.close();}catch(e){}P=null;location.href=location.pathname+(LOCAL?'?local=1':'');};break;
+ case 'kicked':P.state='kicked';clearTimeout(P.to);try{P.net.close();}catch(e){}plCenter(`<div class="emo">🚪</div><h2>${esc(t('kicked'))}</h2><button class="btn dark" id="p-home">${esc(t('home'))}</button>`);$('#p-home').onclick=()=>{P=null;renderJoin('');};break;}}
+function playerQuestion(m){
+ if(P.answeredI===m.i)return;
+ P.state='question';P.qi=m.i;const q=m.q;const total=q.time;const left0=m.left!=null?Math.max(1,m.left):total;const t0=Date.now();
+ view(`<div class="pl">${pbar()}<div class="tbar"><i id="p-tb" style="width:${left0/total*100}%"></i></div><div class="pbody">
+  <div class="note" style="text-align:center;font-weight:700">${esc(t('questionNofM',{i:m.i+1,n:m.n}))} · <span id="p-sec">${Math.ceil(left0)}</span> s</div>
+  ${q.text?`<div class="pq">${esc(q.text)}</div>`:''}<div id="p-ans" style="display:flex;flex-direction:column;gap:14px;flex:1"></div></div></div>`);
+ answerUI($('#p-ans'),q,v=>{P.answeredI=m.i;clearInterval(P.tick);P.net.send({t:'ans',i:m.i,v});plCenter(`<div class="spinner"></div><h2>${esc(t('answerSent'))}</h2>`,true);});
+ clearInterval(P.tick);P.tick=setInterval(()=>{const left=left0-(Date.now()-t0)/1000;const tb=$('#p-tb'),s=$('#p-sec');if(tb)tb.style.width=Math.max(0,left/total*100)+'%';if(s)s.textContent=Math.max(0,Math.ceil(left));if(left<=0){clearInterval(P.tick);if(P.state==='question')plCenter(`<div class="emo">⏰</div><h2>${esc(t('timeUp'))}</h2>`,true);}},250);}
+function playerResult(m){
+ P.state='result';P.score=m.score;
+ let cls,head,emo;
+ if(!m.scored){cls='neutral';emo='💜';head=t('thanks');}
+ else if(!m.answered){cls='badc';emo='⏰';head=t('timeUp');}
+ else if(m.ok){cls='good';emo='✅';head=t('correctMsg');}
+ else{cls='badc';emo='❌';head=t('wrongMsg');}
+ clearInterval(P.tick);
+ view(`<div class="pl">${pbar()}<div class="fb ${cls}"><div class="emo" style="font-size:4em">${emo}</div><h1>${esc(head)}</h1>
+  ${m.scored&&m.ok?`<div class="gain">+${m.gained}</div>`:''}
+  ${m.scored&&m.streak>1?`<div style="font-weight:800">${esc(t('streakN',{n:m.streak}))}</div>`:''}
+  ${m.scored&&!m.ok&&m.correct?`<div class="corr">${esc(t('correctAnswer'))}: <b>${esc(m.correct)}</b></div>`:''}
+  <div style="font-weight:800;font-size:1.2em">${esc(t('place',{n:m.rank}))}</div></div></div>`);}
+
+/* ================= PRACTICE (solo) ================= */
+let S=null;
+function startPractice(id){const quiz=quizzes.find(q=>q.id===id);if(!quiz)return;const prep=prepareQuiz(quiz);if(!prep)return;
+ S={id,qs:prep.qs,settings:prep.settings,title:prep.title,i:-1,score:0,correct:0,streak:0,scoredN:0,tick:null};soloNext();}
+function soloExit(){if(S)clearInterval(S.tick);S=null;renderHome();}
+function soloBar(){return `<div class="pbar"><button class="btn small dark" id="s-x">✕</button><span>${esc(S.title)}</span><span class="spacer"></span><span class="sc">${S.score}</span></div>`;}
+function soloNext(){
+ clearInterval(S.tick);S.i++;
+ if(S.i>=S.qs.length){const pct=S.scoredN?Math.round(S.correct/S.scoredN*100):100;
+  view(`<div class="pl">${soloBar()}<div class="center"><div class="emo">${pct>=80?'🏆':pct>=50?'👍':'💪'}</div><h1>${esc(t('practiceDone'))}</h1><h2 style="margin:0">${esc(t('correctOf',{c:S.correct,n:S.scoredN}))}</h2><p style="font-size:1.4em;font-weight:800">${esc(t('total'))}: ${S.score}</p><div style="display:flex;gap:10px"><button class="btn primary big" id="s-again">🔁 ${esc(t('retry'))}</button><button class="btn dark big" id="s-home">🏠 ${esc(t('home'))}</button></div></div></div>`);
+  $('#s-x').onclick=soloExit;$('#s-home').onclick=soloExit;$('#s-again').onclick=()=>startPractice(S.id);return;}
+ const q=S.qs[S.i];
+ if(q.type==='slide'){view(`<div class="pl">${soloBar()}<div class="slideview"><div class="st">${esc(q.text)}</div>${q.image?`<img src="${esc(q.image)}" alt="">`:''}<div class="sb">${esc(q.body)}</div><button class="btn primary big" id="s-next">${esc(t('next'))} ▶</button></div></div>`);$('#s-x').onclick=soloExit;$('#s-next').onclick=soloNext;return;}
+ const p=publicQ(q,{showText:true,withImage:q.type!=='pin'});const t0=Date.now();
+ view(`<div class="pl">${soloBar()}<div class="tbar"><i id="s-tb" style="width:100%"></i></div><div class="pbody">
+  <div class="note" style="text-align:center;font-weight:700">${esc(t('questionNofM',{i:S.i+1,n:S.qs.length}))} · <span id="s-sec">${q.time}</span> s</div>
+  <div class="pq">${esc(q.text)}</div>${p.image&&q.type!=='pin'?`<div class="pimg"><img src="${esc(p.image)}" alt=""></div>`:''}
+  <div id="s-ans" style="display:flex;flex-direction:column;gap:14px;flex:1"></div></div></div>`);
+ $('#s-x').onclick=soloExit;
+ let answered=false;const fin=v=>{if(answered)return;answered=true;clearInterval(S.tick);soloResult(q,v,Date.now()-t0);};
+ answerUI($('#s-ans'),p,fin);
+ S.tick=setInterval(()=>{const left=q.time-(Date.now()-t0)/1000;const tb=$('#s-tb'),s=$('#s-sec');if(tb)tb.style.width=Math.max(0,left/q.time*100)+'%';if(s)s.textContent=Math.max(0,Math.ceil(left));if(left<=0)fin(undefined);},250);}
+function soloResult(q,v,ms){
+ const ok=evaluate(q,v);const scored=isScored(q);let gained=0;
+ if(TYPES[q.type].scored)S.scoredN++;
+ if(ok)S.correct++;
+ if(scored){if(ok){S.streak++;gained=calcPoints(q,ms);if(S.settings.streak&&S.streak>1)gained+=Math.min(S.streak-1,5)*100;}else S.streak=0;}
+ S.score+=gained;
+ let cls,emo,head;
+ if(ok===null){cls='neutral';emo='💜';head=t('thanks');}else if(v===undefined){cls='badc';emo='⏰';head=t('timeUp');}else if(ok){cls='good';emo='✅';head=t('correctMsg');}else{cls='badc';emo='❌';head=t('wrongMsg');}
+ const ct=correctText(q);
+ let extra='';
+ if(q.type==='pin')extra=`<div class="pinview" style="margin-top:6px"><img src="${esc(q.image)}" alt="" style="max-height:34vh"><div class="pinzone" style="left:${q.target.x*100}%;top:${q.target.y*100}%;width:${q.radius*200}%"></div>${v?`<div class="dot" style="left:${v.x*100}%;top:${v.y*100}%;background:${ok?'#26890c':'#e21b3c'}"></div>`:''}</div>`;
+ view(`<div class="pl">${soloBar()}<div class="fb ${cls}"><div class="emo" style="font-size:4em">${emo}</div><h1>${esc(head)}</h1>
+  ${scored&&ok?`<div class="gain">+${gained}</div>`:''}${scored&&S.streak>1?`<div style="font-weight:800">${esc(t('streakN',{n:S.streak}))}</div>`:''}
+  ${ok===false&&ct?`<div class="corr">${esc(t('correctAnswer'))}: <b>${esc(ct)}</b></div>`:''}${extra}
+  <button class="btn big" id="s-next">${esc(t('next'))} ▶</button></div></div>`);
+ $('#s-x').onclick=soloExit;$('#s-next').onclick=soloNext;}
+
+/* ================= start ================= */
+document.documentElement.lang=LANG;
+if(PARAMS.has('pin'))renderJoin(PARAMS.get('pin').replace(/\D/g,'').slice(0,6));else renderHome();
+</script>
+</body>
+</html>
