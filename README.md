@@ -1,6 +1,6 @@
 # Kviz arena
 
-Kviz za učionicu po uzoru na Kahoot – svi tipovi pitanja su otključani i besplatni.
+Kviz za učionicu – svi tipovi pitanja su otključani i besplatni.
 
 **Igraj:** https://programsedu.github.io/kviz/
 
