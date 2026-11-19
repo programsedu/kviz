@@ -16,5 +16,5 @@ Kviz (2–6 odgovora) · Više tačnih · Tačno/Netačno · Ukucaj odgovor · K
 - režim „Vežbaj sam”, uvoz/izvoz kvizova (JSON)
 - jezici: srpski, makedonski, bugarski, rumunski, engleski
 
-Kvizovi se čuvaju u pregledaču (localStorage) – povremeno ih izvezi kao rezervnu kopiju.
-Igrači se povezuju direktno (WebRTC, PeerJS), bez sopstvenog servera.
+Nastavnik se može prijaviti (e-mail i lozinka) i tada se kvizovi automatski čuvaju u oblaku (Supabase) i dostupni su na svakom računaru. Bez prijave kvizovi ostaju u pregledaču.
+Igra se odvija preko Supabase Realtime kanala (rezerva: PeerJS). Šema baze je u `supabase.sql`.
