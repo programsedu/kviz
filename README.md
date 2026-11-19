@@ -12,7 +12,8 @@ Kviz (2–6 odgovora) · Više tačnih · Tačno/Netačno · Ukucaj odgovor · K
 ## Mogućnosti
 - slike u pitanjima, vreme 5 s – 4 min, dupli bodovi ili bez bodova
 - bonus za niz tačnih odgovora, mešanje pitanja i odgovora
-- rang lista, pobedničko postolje, rezultati u CSV-u
+- rang lista, pobedničko postolje (1., 2. i 3. mesto), rezultati u CSV-u
+- analiza na kraju igre kao u Kahoot-u: pregled (teška pitanja, kome je potrebna pomoć, ko nije završio), analiza po pitanjima i po igračima; i u režimu „Vežbaj sam”
 - režim „Vežbaj sam”, uvoz/izvoz kvizova (JSON)
 - jezici: srpski, makedonski, bugarski, rumunski, engleski
 
