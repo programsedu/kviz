@@ -431,12 +431,13 @@ function rtChannel(pin){return sb.channel('kviz-'+pin,{config:{broadcast:{self:f
 function makeHostNet(pin,h){
  if(LOCAL){const bc=new BroadcastChannel('ka-'+pin);bc.onmessage=e=>{const d=e.data;if(d.k==='c2h')h.msg(d.cid,d.m);else if(d.k==='bye')h.close(d.cid);};setTimeout(()=>h.ready(),30);
   return {send(cid,m){bc.postMessage({k:'h2c',cid,m});},broadcast(m){bc.postMessage({k:'h2c',cid:'*',m});},close(){bc.close();}};}
- if(sb){const ch=rtChannel(pin);let ready=false;
-  ch.on('broadcast',{event:'c2h'},({payload})=>{if(payload&&payload.cid)h.msg(payload.cid,payload.m);});
-  ch.on('broadcast',{event:'bye'},({payload})=>{if(payload&&payload.cid)h.close(payload.cid);});
-  ch.subscribe((st,err)=>{if(st==='SUBSCRIBED'){if(!ready){ready=true;h.ready();}}else if((st==='CHANNEL_ERROR'||st==='TIMED_OUT')&&!ready)h.error({type:st,message:err&&err.message});});
+ if(sb){const ch=rtChannel(pin),up=rtChannel(pin+'-up');let n=0,ready=false;
+  up.on('broadcast',{event:'c2h'},({payload})=>{if(payload&&payload.cid)h.msg(payload.cid,payload.m);});
+  up.on('broadcast',{event:'bye'},({payload})=>{if(payload&&payload.cid)h.close(payload.cid);});
+  const cb=(st,err)=>{if(st==='SUBSCRIBED'){if(++n>=2&&!ready){ready=true;h.ready();}}else if((st==='CHANNEL_ERROR'||st==='TIMED_OUT')&&!ready)h.error({type:st,message:err&&err.message});};
+  ch.subscribe(cb);up.subscribe(cb);
   const out=(cid,m)=>{ch.send({type:'broadcast',event:'h2c',payload:{cid,m}}).catch(()=>{});};
-  return {send:out,broadcast(m){out('*',m);},close(){try{sb.removeChannel(ch);}catch(e){}}};}
+  return {send:out,broadcast(m){out('*',m);},close(){try{sb.removeChannel(ch);sb.removeChannel(up);}catch(e){}}};}
  const conns=new Map();const peer=new Peer(PEER_PREFIX+pin,{debug:0});let closed=false;
  peer.on('open',()=>h.ready());
  peer.on('connection',conn=>{const cid=uid();conns.set(cid,conn);conn.on('data',d=>h.msg(cid,d));conn.on('close',()=>{conns.delete(cid);h.close(cid);});conn.on('error',()=>{});});
@@ -449,11 +450,12 @@ function makePlayerNet(pin,h){
  if(LOCAL){const bc=new BroadcastChannel('ka-'+pin);bc.onmessage=e=>{const d=e.data;if(d.k==='h2c'&&(d.cid===cid||d.cid==='*'))h.msg(d.m);};setTimeout(()=>h.open(),30);
   const bye=()=>{try{bc.postMessage({k:'bye',cid});}catch(e){}};addEventListener('pagehide',bye);
   return {send(m){bc.postMessage({k:'c2h',cid,m});},close(){bye();bc.close();}};}
- if(sb){const ch=rtChannel(pin);let opened=false;
+ if(sb){const ch=rtChannel(pin);const up=sb.channel('kviz-'+pin+'-up');let opened=false;
+  /* igrači primaju na kanalu igre, a šalju samo domaćinu (REST, bez pretplate) – manje poruka */
   ch.on('broadcast',{event:'h2c'},({payload})=>{if(payload&&(payload.cid===cid||payload.cid==='*'))h.msg(payload.m);});
-  ch.subscribe((st,err)=>{if(st==='SUBSCRIBED'){if(!opened){opened=true;h.open();}else h.open();}else if((st==='CHANNEL_ERROR'||st==='TIMED_OUT')&&!opened)h.error({type:st,message:err&&err.message});});
-  const bye=()=>{try{ch.send({type:'broadcast',event:'bye',payload:{cid}});}catch(e){}};addEventListener('pagehide',bye);
-  return {send(m){ch.send({type:'broadcast',event:'c2h',payload:{cid,m}}).catch(()=>{});},close(){bye();setTimeout(()=>{try{sb.removeChannel(ch);}catch(e){}},300);}};}
+  ch.subscribe((st,err)=>{if(st==='SUBSCRIBED'){opened=true;h.open();}else if((st==='CHANNEL_ERROR'||st==='TIMED_OUT')&&!opened)h.error({type:st,message:err&&err.message});});
+  const bye=()=>{try{up.send({type:'broadcast',event:'bye',payload:{cid}});}catch(e){}};addEventListener('pagehide',bye);
+  return {send(m){up.send({type:'broadcast',event:'c2h',payload:{cid,m}}).catch(()=>{});},close(){bye();setTimeout(()=>{try{sb.removeChannel(ch);sb.removeChannel(up);}catch(e){}},300);}};}
  const peer=new Peer({debug:0});let conn=null;
  peer.on('open',()=>{conn=peer.connect(PEER_PREFIX+pin,{reliable:true});conn.on('open',()=>h.open());conn.on('data',d=>h.msg(d));conn.on('close',()=>h.close());conn.on('error',()=>{});});
  peer.on('error',e=>h.error(e));
@@ -597,7 +599,7 @@ function bindSpecific(q,re){
   img.onload=()=>{const a=img.naturalHeight/img.naturalWidth;if(a&&isFinite(a)&&Math.abs(a-(q.aspect||0))>.001){q.aspect=a;touch();}};
   pe.onclick=e=>{const r=img.getBoundingClientRect();q.target={x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))};draw();touch();};
   $('#pinr').oninput=e=>{q.radius=+e.target.value;draw();touch();};}}
-function readImage(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const M=900;let w=img.naturalWidth||800,h=img.naturalHeight||600;const s=Math.min(1,M/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);res({url:c.toDataURL('image/jpeg',.78),aspect:h/w});};img.onerror=rej;img.src=fr.result;};fr.onerror=rej;fr.readAsDataURL(file);});}
+function readImage(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const M=900;let w=img.naturalWidth||800,h=img.naturalHeight||600;const s=Math.min(1,M/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);let q=.8,u=c.toDataURL('image/jpeg',q);while(u.length>170000&&q>.35){q-=.1;u=c.toDataURL('image/jpeg',q);}res({url:u,aspect:h/w});};img.onerror=rej;img.src=fr.result;};fr.onerror=rej;fr.readAsDataURL(file);});}
 
 /* ================= shared answer UI ================= */
 function answerUI(el,p,submit){
@@ -683,7 +685,6 @@ function hostMsg(cid,m){
   const pid=H.cidToPid.get(cid);const p=pid&&H.players.get(pid);if(!p||H.players.get(pid).cid!==cid)return;
   if(H.state!=='question'||m.i!==H.i||H.answers.has(pid))return;
   H.answers.set(pid,{v:sanitize(m.v),ms:Date.now()-H.qStart});
-  H.net.send(cid,{t:'got'});
   const c=$('#hq-ans');if(c)c.textContent=H.answers.size;
   maybeAllAnswered();}}
 function maybeAllAnswered(){if(!H||H.state!=='question')return;const on=[...H.players.values()].filter(p=>p.online);if(on.length&&on.every(p=>H.answers.has(p.pid))){clearTimeout(H.allT);H.allT=setTimeout(()=>hostEndQuestion(),500);}}
@@ -729,7 +730,8 @@ function hostEndQuestion(){
   if(scored){if(ok){p.streak++;gained=calcPoints(q,a.ms);if(H.settings.streak&&p.streak>1)gained+=Math.min(p.streak-1,5)*100;}else p.streak=0;}
   p.score+=gained;p.res[H.i]={v:a?a.v:undefined,ok,gained,answered:!!a};}
  const ranked=rankPlayers();const ct=correctText(q);
- ranked.forEach((p,idx)=>{if(p.online&&p.cid){const r=p.res[H.i];H.net.send(p.cid,{t:'res',ok:r.ok,answered:r.answered,gained:r.gained,score:p.score,rank:idx+1,streak:p.streak,scored:TYPES[q.type].scored,correct:ct});}});
+ const all={};ranked.forEach((p,idx)=>{const r=p.res[H.i];all[p.pid]={ok:r.ok,answered:r.answered,gained:r.gained,score:p.score,rank:idx+1,streak:p.streak};});
+ broadcast({t:'res',all,scored:TYPES[q.type].scored,correct:ct});
  renderHostReveal(q);}
 function bars(items){const mx=Math.max(1,...items.map(x=>x.n));return items.map(x=>`<div class="col"><div class="cnt">${x.n}${x.correct?' ✓':''}</div><div class="b c${x.c}" style="height:${Math.round(x.n/mx*75)+3}%;${x.dim?'opacity:.35':''}"></div><div class="lab c${x.c}" style="${x.dim?'opacity:.35':''}">${x.shape||SHAPES[x.c]} ${esc(x.label).slice(0,40)}</div></div>`).join('');}
 function revealBody(q){
@@ -765,8 +767,9 @@ function renderBoard(){
  view(`<div class="host">${hbar()}<h1 style="text-align:center;margin:18px 0 0">${esc(t('scoreboard'))}</h1><div class="board">${r.map((p,i)=>{const g=p.res[H.i]?p.res[H.i].gained:0;return `<div class="r ${i===0?'first':''}" style="animation-delay:${i*.08}s"><span class="rk">${i+1}.</span><span class="nm">${esc(p.name)}${p.streak>1?' 🔥'+p.streak:''}</span>${g?`<span class="gain">+${g}</span>`:''}<span>${p.score}</span></div>`;}).join('')}</div><div class="spacer"></div><div class="hfoot"><button class="btn primary big" id="h-next">${esc(t('next'))} ▶</button></div></div>`);
  bindHbar();$('#h-next').onclick=hostNext;}
 function sendEnd(p,ranked){if(p.online&&p.cid)H.net.send(p.cid,{t:'end',rank:ranked.indexOf(p)+1,score:p.score,n:ranked.length});}
+function sendEndAll(ranked){const all={};ranked.forEach((p,i)=>all[p.pid]={rank:i+1,score:p.score});broadcast({t:'end',all,n:ranked.length});}
 function hostPodium(){
- H.state='podium';const r=rankPlayers();r.forEach(p=>sendEnd(p,r));
+ H.state='podium';const r=rankPlayers();sendEndAll(r);
  const pod=(p,k)=>p?`<div class="pod p${k}"><div class="nm">${esc(p.name)}</div><div class="blk">${k}<small>${p.score}</small></div></div>`:'';
  const scoredIdx=H.quiz.qs.map((q,i)=>TYPES[q.type].scored?i:-1).filter(i=>i>=0);
  view(`<div class="host">${hbar()}<h1 style="text-align:center;margin:16px 0 0">🏆 ${esc(t('gameOver'))}</h1>
@@ -821,9 +824,9 @@ function playerMsg(m){
  case 'ready':P.state='ready';plCenter(`<div class="pill" style="background:#fff;color:var(--ink);border-radius:30px;padding:.4em 1.2em;font-weight:800">${esc(t('questionNofM',{i:m.i+1,n:m.n}))}</div><h1>${esc(t('getReady'))}</h1><div class="spinner"></div>`,true);break;
  case 'q':playerQuestion(m);break;
  case 'got':P.state='sent';plCenter(`<div class="spinner"></div><h2>${esc(t('answerSent'))}</h2><p>${esc(t('waitOthers'))}</p>`,true);break;
- case 'res':playerResult(m);break;
+ case 'res':{const r=m.all?m.all[P.pid]:m;if(r)playerResult(Object.assign({},r,{scored:m.scored,correct:m.correct}));break;}
  case 'slide':case 'wait':P.state='wait';plCenter(`<div class="emo">👀</div><h2>${esc(t('lookAtScreen'))}</h2>`,true);break;
- case 'end':P.state='end';P.score=m.score;plCenter(`<div class="emo">${m.rank===1?'🏆':m.rank<=3?'🥇🥈🥉'.slice((m.rank-1)*2,(m.rank)*2):'⭐'}</div><h1>${esc(t('gameOver'))}</h1><h2 style="margin:0">${esc(t('place',{n:m.rank}))} ${esc(t('of'))} ${m.n}</h2><p style="font-size:1.3em;font-weight:800">${esc(t('yourScore',{n:m.score}))}</p><button class="btn dark" id="p-home">${esc(t('home'))}</button>`,true);
+ case 'end':if(m.all){const r=m.all[P.pid];if(!r)break;m=Object.assign({},m,r);}P.state='end';P.score=m.score;plCenter(`<div class="emo">${m.rank===1?'🏆':m.rank<=3?'🥇🥈🥉'.slice((m.rank-1)*2,(m.rank)*2):'⭐'}</div><h1>${esc(t('gameOver'))}</h1><h2 style="margin:0">${esc(t('place',{n:m.rank}))} ${esc(t('of'))} ${m.n}</h2><p style="font-size:1.3em;font-weight:800">${esc(t('yourScore',{n:m.score}))}</p><button class="btn dark" id="p-home">${esc(t('home'))}</button>`,true);
   $('#p-home').onclick=()=>{try{P.net.close();}catch(e){}P=null;location.href=location.pathname+(LOCAL?'?local=1':'');};break;
  case 'kicked':P.state='kicked';clearTimeout(P.to);try{P.net.close();}catch(e){}plCenter(`<div class="emo">🚪</div><h2>${esc(t('kicked'))}</h2><button class="btn dark" id="p-home">${esc(t('home'))}</button>`);$('#p-home').onclick=()=>{P=null;renderJoin('');};break;}}
 function playerQuestion(m){
