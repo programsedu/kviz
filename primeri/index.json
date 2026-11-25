@@ -22,6 +22,17 @@
   ]
  },
  {
+  "group": "Енглески језик",
+  "file": "engleski.json",
+  "count": 16,
+  "grades": [
+   5,
+   6,
+   7,
+   8
+  ]
+ },
+ {
   "group": "Историја",
   "file": "istorija.json",
   "count": 16,
