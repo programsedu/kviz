@@ -514,7 +514,7 @@ function makePlayerNet(pin,h){
 /* ================= HOME ================= */
 function langSelect(){return `<select class="lang" id="langsel" aria-label="${esc(t('language'))}">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===LANG?'selected':''}>${v}</option>`).join('')}</select>`;}
 function bindLang(rerender){const s=$('#langsel');if(s)s.onchange=()=>{LANG=s.value;localStorage.setItem('ka.lang',LANG);document.documentElement.lang=LANG;rerender();};}
-const GROUP_ICONS=[['tehn','🛠️'],['info','💻'],['racun','💻'],['matem','📐'],['bio','🧬'],['hem','🧪'],['geo','🌍'],['istor','🏛️'],['srpsk','📖'],['engl','🇬🇧'],['nemac','🇩🇪'],['deutsch','🇩🇪'],['franc','🇫🇷'],['ruski','🇷🇺'],['likov','🎨'],['muzic','🎵'],['fizick','⚽'],['sport','⚽'],['fizik','⚛️'],['prirod','🌱'],['svet oko','🌱'],['gradj','🤝'],['veron','⛪'],['jezik','🗣️']];
+const GROUP_ICONS=[['tehn','🛠️'],['info','💻'],['racun','💻'],['matem','📐'],['bio','🧬'],['hem','🧪'],['geo','🌍'],['istor','🏛️'],['srpsk','📖'],['engl','🇬🇧'],['nemac','🇩🇪'],['deutsch','🇩🇪'],['franc','🇫🇷'],['ruski','🇷🇺'],['likov','🎨'],['muzic','🎵'],['fizick','⚽'],['sport','⚽'],['fizik','⚛️'],['prirod','🌱'],['svet oko','🌱'],['gradj','🤝'],['veron','⛪'],['opst','🌐'],['kultur','🎭'],['jezik','🗣️']];
 function groupIcon(g){const n=norm(g);for(const [k,i] of GROUP_ICONS)if(n.includes(k))return i;return '📁';}
 function getExtraGroups(){try{return JSON.parse(localStorage.getItem('ka.groups'))||[];}catch(e){return [];}}
 function setExtraGroups(a){localStorage.setItem('ka.groups',JSON.stringify([...new Set(a)]));}
