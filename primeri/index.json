@@ -166,5 +166,17 @@
   "file": "opsta.json",
   "count": 8,
   "grades": []
+ },
+ {
+  "group": "Агенцијско и хотелијерско пословање",
+  "file": "ahp.json",
+  "count": 10,
+  "grades": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "level": "ss"
  }
 ]
