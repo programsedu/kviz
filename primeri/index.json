@@ -55,6 +55,25 @@
   ]
  },
  {
+  "group": "Физика",
+  "file": "fizika.json",
+  "count": 12,
+  "grades": [
+   6,
+   7,
+   8
+  ]
+ },
+ {
+  "group": "Хемија",
+  "file": "hemija.json",
+  "count": 8,
+  "grades": [
+   7,
+   8
+  ]
+ },
+ {
   "group": "Техника и технологија",
   "file": "tehnika.json",
   "count": 16,
