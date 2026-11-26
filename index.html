@@ -282,6 +282,19 @@ footer.f{text-align:center;opacity:.6;font-size:.85em;padding:20px}
 .gd-mail{font-size:.92em;line-height:1.5}.gd-mail a{color:#1368ce;font-weight:700;text-decoration:underline}
 .gd-tip{background:#fff3c4;color:#5a4500;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:.92em}
 .gd-help{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;font-weight:700;padding:0}
+.tour-hole{position:fixed;z-index:200;border-radius:12px;box-shadow:0 0 0 4px #ffb400,0 0 0 9999px rgba(10,5,25,.78);pointer-events:none;transition:all .25s ease}
+.tour-hole.none{box-shadow:0 0 0 9999px rgba(10,5,25,.78)}
+.tour-tip{position:fixed;z-index:201;width:min(370px,calc(100vw - 24px));background:#fff;color:#1d1433;border-radius:14px;padding:14px 16px 12px;box-shadow:0 12px 30px rgba(0,0,0,.5);font-size:16px;line-height:1.45}
+.tour-tip::before{content:"";position:absolute;left:var(--ax,40px);width:0;height:0;border:12px solid transparent}
+.tour-tip.below::before{top:-24px;border-bottom-color:#fff}.tour-tip.above::before{bottom:-24px;border-top-color:#fff}.tour-tip.center::before{display:none}
+.tour-tip h3{margin:0 0 6px;font-size:1.15em;display:flex;align-items:center}
+.tour-tip h3 .n{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border-radius:50%;background:#ffb400;color:#3a2600;margin-right:8px;font-weight:800}
+.tour-tip p{margin:0 0 10px}.tour-tip p b{color:#46178f}
+.tour-nav{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.tour-nav button{font-weight:700;border-radius:9px;min-height:40px;padding:8px 14px;cursor:pointer;border:1px solid #d6d0e6;background:#fff;color:#1d1433}
+.tour-nav .go{background:#46178f;color:#fff;border-color:#46178f}.tour-nav span{color:#6b6386;font-size:14px}
+.btn.guide{background:#ffb400;color:#3a2600;border:0}
+@media(prefers-reduced-motion:reduce){.tour-hole{transition:none}}
 </style>
 </head>
 <body>
@@ -316,7 +329,7 @@ const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).sli
 const clone=o=>JSON.parse(JSON.stringify(o));
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 let toastT; function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);}
-function view(html){app.innerHTML=html;window.scrollTo(0,0);}
+function view(html){if(typeof TOUR!=='undefined'&&TOUR)tourEnd();app.innerHTML=html;window.scrollTo(0,0);}
 const SHAPES=['▲','◆','●','■','★','⬢'];
 const PARAMS=new URLSearchParams(location.search);
 const LOCAL=PARAMS.has('local');
@@ -478,8 +491,8 @@ async function onAuth(session){
 function cloudBar(){
  if(!sb)return '';
  if(USER)return `<div class="note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">☁ ${esc(t('loggedAs',{e:USER.email||''}))}<button class="btn small dark" id="b-out">${esc(t('signOut'))}</button>${ADMIN?`<button class="btn small primary" id="b-admin">🔑 ${esc(t('admin'))}</button>`:''}</div>${unlocked()?'':`<div class="card" style="margin:10px 0 18px"><b>🔒 ${esc(t('lockedTitle'))}</b><p class="note" style="margin:6px 0 10px">${esc(t('lockedNote'))} <button class="gd-help" id="b-guide">❓ ${esc(t('guideBtn'))}</button></p><div class="row"><input id="code-in" class="inp hl" style="max-width:240px;text-transform:uppercase" placeholder="KV-XXXX-XXXX" autocomplete="off"><button class="btn primary" id="code-ok">🔓 ${esc(t('unlock'))}</button></div><div id="code-msg" class="problem" hidden></div></div>`}`;
- return `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><span style="flex:1;min-width:200px">☁ ${esc(t('cloudNote'))}</span><button class="btn primary" id="b-in">${esc(t('signIn'))}</button><button class="btn small" id="b-guide">❓ ${esc(t('guideBtn'))}</button></div>`;}
-function bindCloudBar(){if($('#b-guide'))$('#b-guide').onclick=showGuide;if($('#b-admin'))$('#b-admin').onclick=adminPanel;if($('#code-ok')){const go=async()=>{const v=$('#code-in').value.trim();if(!v)return $('#code-in').focus();$('#code-ok').disabled=true;const {data,error}=await sb.rpc('kviz_iskoristi_sifru',{p:v});$('#code-ok').disabled=false;if(!error&&data==='ok'){await loadAccess();await loadCloud();toast(t('unlockedOk'));renderHome();}else{const el=$('#code-msg');el.hidden=false;el.textContent=t(data==='locked'?'codeLocked':'codeBad');}};$('#code-ok').onclick=go;$('#code-in').onkeydown=e=>{if(e.key==='Enter')go();};}if($('#b-in'))$('#b-in').onclick=authModal;if($('#b-out'))$('#b-out').onclick=async()=>{if(cloudPending())await cloudSync();await sb.auth.signOut();};}
+ return `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><span style="flex:1;min-width:200px">☁ ${esc(t('cloudNote'))}</span><button class="btn primary" id="b-in">${esc(t('signIn'))}</button></div>`;}
+function bindCloudBar(){if($('#b-guide'))$('#b-guide').onclick=startTour;if($('#b-admin'))$('#b-admin').onclick=adminPanel;if($('#code-ok')){const go=async()=>{const v=$('#code-in').value.trim();if(!v)return $('#code-in').focus();$('#code-ok').disabled=true;const {data,error}=await sb.rpc('kviz_iskoristi_sifru',{p:v});$('#code-ok').disabled=false;if(!error&&data==='ok'){await loadAccess();await loadCloud();toast(t('unlockedOk'));renderHome();}else{const el=$('#code-msg');el.hidden=false;el.textContent=t(data==='locked'?'codeLocked':'codeBad');}};$('#code-ok').onclick=go;$('#code-in').onkeydown=e=>{if(e.key==='Enter')go();};}if($('#b-in'))$('#b-in').onclick=authModal;if($('#b-out'))$('#b-out').onclick=async()=>{if(cloudPending())await cloudSync();await sb.auth.signOut();};}
 function authModal(){
  const m=modal(`<h3>☁ ${esc(t('signIn'))}</h3><form id="au-f"><div class="field"><label>${esc(t('email'))}</label><input type="email" id="au-e" class="inp" autocomplete="username" required></div><div class="field"><label>${esc(t('password'))}</label><input type="password" id="au-p" class="inp" autocomplete="current-password" minlength="6" required></div>
   <div id="au-msg" class="problem" hidden></div>
@@ -586,7 +599,7 @@ function renderHome(){
  const shown=!GRP?LIST:GRP==='__none'?LIST.filter(q=>!q.group):LIST.filter(q=>q.group===GRP);
  const chip=(g,label,n)=>`<button class="gchip ${GRP===g?'on':''}" data-grp="${esc(g)}">${label} <small>${n}</small></button>`;
  const gchips=`<div class="gchips">${chip('',esc(t('allGroups')),LIST.length)}${groups.map(g=>chip(g,groupIcon(g)+' '+esc(g),LIST.filter(q=>q.group===g).length)).join('')}${groups.length&&ungrouped?chip('__none','— '+esc(t('noGroup')),ungrouped):''}${UL?`<button class="gchip add" id="g-new">＋ ${esc(t('newGroup'))}</button>`:''}</div>`;
- view(`<div class="topbar"><div class="logo">🎯 ${esc(t('appName'))}</div><div class="spacer"></div>${langSelect()}</div>
+ view(`<div class="topbar"><div class="logo">🎯 ${esc(t('appName'))}</div><div class="spacer"></div><button class="btn small guide" id="b-tour">❓ ${esc(t('guideBtn'))}</button>${langSelect()}</div>
  <div class="wrap">
   <p style="margin-top:0;font-size:1.15em;font-weight:600">${esc(t('tagline'))}</p>
   ${cloudBar()}
@@ -608,7 +621,7 @@ function renderHome(){
   </div>`).join('')}</div>`:`<p class="note">${esc(t(!UL?'noPublic':LIST.length?'emptyGroup':'noQuizzes'))}</p>`}
   <p class="note" style="margin-top:28px">${esc(t('allUnlocked'))}<br>${esc(t('localNote'))}</p>
  </div>`);
- bindLang(renderHome);bindCloudBar();
+ bindLang(renderHome);bindCloudBar();$('#b-tour').onclick=startTour;if(USER&&!unlocked()&&!localStorage.getItem('ka.tour.locked')){localStorage.setItem('ka.tour.locked','1');setTimeout(()=>{if($('#code-in')&&!TOUR&&!document.querySelector('.modal-bg'))startTour();},600);}
  $('#b-join').onclick=()=>renderJoin('');
  if(UL){$('#b-new').onclick=()=>{const q={id:newId(!!USER),_cloud:!!USER,...(GRP&&GRP!=='__none'?{group:GRP}:{}),title:'',description:'',settings:{shuffleQ:false,shuffleA:false,streak:true,showText:true},questions:[newQuestion('quiz')]};quizzes.unshift(q);saveQuizzes();renderEditor(q.id);};
  $('#b-imp').onclick=importQuiz;$('#b-ex').onclick=showExamples;}
@@ -629,6 +642,88 @@ function importQuiz(){const fi=$('#filein');fi.accept='.json,application/json';f
  list.forEach(o=>{delete o._cloud;o.id=newId(!!USER);if(USER)o._cloud=true;o.questions=o.questions.map(q=>Object.assign(newQuestion(q.type),q,{id:uid()}));if(!o.group&&GRP&&GRP!=='__none')o.group=GRP;o.settings=Object.assign({shuffleQ:false,shuffleA:false,streak:true,showText:true},o.settings||{});quizzes.unshift(o);});saveQuizzes();toast(t('imported',{n:list.length}));renderHome();}catch(e){alert(t('importErr'));}};fi.click();}
 
 
+
+
+/* ================= VOĐENA TURA (uputstvo) ================= */
+const TOURTX={
+sr:{close:"Zatvori",back:"Nazad",next:"Dalje",done:"Gotovo",pics:"📄 Uputstvo sa slikama",
+ join:["Pridruži se igri","Učenici ovde ulaze u igru – upišu PIN sa velikog ekrana i svoje ime. Za to im ne treba nalog."],
+ pub:["Javni kvizovi","Ovo su kvizovi dostupni svima. Možeš da ih pregledaš, vežbaš ili pokreneš kao igru."],
+ signin:["Prijava","Nastavnici prvo kliknu <b>Prijava</b>. Klikni <b>Dalje</b> i otvoriću ti prozor za prijavu."],
+ email:["Upiši e-mail","Ovde upiši svoju <b>e-mail adresu</b>."],
+ pass:["Upiši lozinku","Smisli <b>lozinku</b> od najmanje 6 znakova i zapamti je."],
+ signup:["Napravi nalog","Ako nemaš nalog, klikni <b>Napravi nalog</b>. Zatim otvori e-poštu i klikni link <b>Confirm your mail</b> (proveri i Spam)."],
+ login:["Prijavi se","Kad potvrdiš nalog (ili ako ga već imaš), upiši e-mail i lozinku i klikni <b>Prijava</b>."],
+ after:["Šifra","Posle prijave na početnoj strani pojaviće se okvir <b>🔒 Nalog nije otključan</b> – tu upisuješ šifru koju si dobio/la od administratora. Tada klikni <b>Uputstvo</b> ponovo i pokazaću ti tačno gde."],
+ code:["Upiši šifru","Ovde upiši <b>šifru</b> koju si dobio/la od administratora (npr. KV-7H3P-Q9XA). Velika i mala slova nisu bitna."],
+ unlock:["Otključaj","Klikni <b>Otključaj</b>. Ako je šifra ispravna, nalog se odmah otključava i dobijaš sve mogućnosti."],
+ bnew:["Novi kviz","Pravi svoj kviz od početka – biraš tip pitanja, vreme i tačne odgovore."],
+ bimp:["Uvezi kviz","Učitaj kviz iz datoteke (.json) koju si ranije izvezao/la ili dobio/la od kolege."],
+ bex:["Primeri kvizova","Gotovi kvizovi za sve predmete i razrede. Klikni <b>＋ Dodaj</b> i kviz se pojavljuje u tvojim kvizovima."],
+ groups:["Grupe","Kvizove možeš da razvrstaš po predmetima. Klik na grupu prikazuje samo njene kvizove."],
+ host:["Pokreni igru","Pokreće kviz na velikom ekranu – učenici ulaze sa telefona preko PIN-a."],
+ prac:["Vežbaj sam","Učenik ili ti možete sami da prođete kviz, bez igre uživo."],
+ edit:["Uredi","Ovde menjaš pitanja, odgovore, slike i vreme za odgovor."]},
+en:{close:"Close",back:"Back",next:"Next",done:"Done",pics:"📄 Illustrated guide",
+ join:["Join a game","Students join the game here – they type the PIN from the big screen and their name. No account needed."],
+ pub:["Public quizzes","These quizzes are available to everyone. You can preview, practice or host them."],
+ signin:["Sign in","Teachers first click <b>Sign in</b>. Click <b>Next</b> and I'll open the sign-in window."],
+ email:["Enter your email","Type your <b>email address</b> here."],
+ pass:["Enter a password","Choose a <b>password</b> of at least 6 characters and remember it."],
+ signup:["Create account","If you don't have an account, click <b>Create account</b>. Then open your email and click <b>Confirm your mail</b> (check Spam too)."],
+ login:["Sign in","After confirming (or if you already have an account), enter your email and password and click <b>Sign in</b>."],
+ after:["Code","After signing in, a <b>🔒 Account not unlocked</b> box appears on the home page – that's where you enter the code from the administrator. Click <b>Guide</b> again then and I'll show you exactly where."],
+ code:["Enter the code","Type the <b>code</b> you got from the administrator (e.g. KV-7H3P-Q9XA). Case doesn't matter."],
+ unlock:["Unlock","Click <b>Unlock</b>. If the code is valid, your account is unlocked right away."],
+ bnew:["New quiz","Create your own quiz – choose question types, time and correct answers."],
+ bimp:["Import quiz","Load a quiz from a .json file you exported earlier or got from a colleague."],
+ bex:["Example quizzes","Ready-made quizzes for all subjects and grades. Click <b>＋ Add</b> and the quiz appears among your quizzes."],
+ groups:["Groups","Sort your quizzes by subject. Clicking a group shows only its quizzes."],
+ host:["Host game","Shows the quiz on the big screen – students join from their phones with the PIN."],
+ prac:["Practice solo","Go through the quiz alone, without a live game."],
+ edit:["Edit","Change questions, answers, images and time limits here."]}};
+const TT=k=>(TOURTX[LANG]||TOURTX.en)[k]??TOURTX.en[k];
+let TOUR=null;
+const authOpen=()=>!!$('#au-f');
+const closeAuth=()=>{const f=$('#au-f');if(f){const bg=f.closest('.modal-bg');if(bg)bg.remove();}};
+function tourSteps(){
+ const S=(sel,k,before)=>({sel,k,before});const st=[];
+ if(!USER){
+  st.push(S('#b-join','join',closeAuth));
+  if($('.qcard'))st.push(S('.qcard','pub',closeAuth));
+  if($('#b-in')){st.push(S('#b-in','signin',closeAuth));
+   const oa=()=>{if(!authOpen())authModal();};
+   st.push(S('#au-e','email',oa),S('#au-p','pass',oa),S('#au-up','signup',oa),S('#au-in','login',oa),S(null,'after',closeAuth));}
+ }else if(!unlocked()){
+  st.push(S('#code-in','code'),S('#code-ok','unlock'),S('#b-join','join'));
+ }else{
+  st.push(S('#b-new','bnew'),S('#b-imp','bimp'),S('#b-ex','bex'));
+  if($('.gchips'))st.push(S('.gchips','groups'));
+  if($('.qcard [data-a=host]'))st.push(S('.qcard [data-a=host]','host'),S('.qcard [data-a=practice]','prac'));
+  if($('.qcard [data-a=edit]'))st.push(S('.qcard [data-a=edit]','edit'));
+  st.push(S('#b-join','join'));
+ }
+ return st;}
+function startTour(){if(TOUR)tourEnd();const steps=tourSteps();if(!steps.length)return;
+ const hole=document.createElement('div');hole.className='tour-hole';const tip=document.createElement('div');tip.className='tour-tip';tip.setAttribute('role','dialog');
+ document.body.append(hole,tip);TOUR={steps,i:0,hole,tip};
+ TOUR.onkey=e=>{if(!TOUR)return;if(e.key==='Escape')tourEnd();else if(e.key==='ArrowRight')tourGo(1);else if(e.key==='ArrowLeft')tourGo(-1);};
+ TOUR.onpos=()=>tourPlace();addEventListener('keydown',TOUR.onkey);addEventListener('resize',TOUR.onpos);addEventListener('scroll',TOUR.onpos,true);
+ tourShow();}
+function tourEnd(){if(!TOUR)return;TOUR.hole.remove();TOUR.tip.remove();removeEventListener('keydown',TOUR.onkey);removeEventListener('resize',TOUR.onpos);removeEventListener('scroll',TOUR.onpos,true);TOUR=null;}
+function tourGo(d){if(!TOUR)return;const n=TOUR.i+d;if(n<0)return;if(n>=TOUR.steps.length){const lastAfter=TOUR.steps[TOUR.i].k==='after';tourEnd();return;}TOUR.i=n;tourShow();}
+function tourShow(){const T=TOUR;const st=T.steps[T.i];if(st.before)st.before();
+ setTimeout(()=>{if(TOUR!==T)return;const [title,text]=TT(st.k);const last=T.i===T.steps.length-1;
+  T.tip.innerHTML=`<h3><span class="n">${T.i+1}</span>${esc(title)}</h3><p>${text}</p>${st.k==='after'?`<p><button class="gd-help" id="tour-pics" style="color:#46178f">${esc(TT('pics'))}</button></p>`:''}<div class="tour-nav"><button id="tour-x">${esc(TT('close'))}</button><span>${T.i+1} / ${T.steps.length}</span><div style="display:flex;gap:8px">${T.i?`<button id="tour-b">${esc(TT('back'))}</button>`:''}<button class="go" id="tour-n">${esc(last?TT('done'):TT('next'))}</button></div></div>`;
+  $('#tour-x').onclick=tourEnd;$('#tour-n').onclick=()=>tourGo(1);if($('#tour-b'))$('#tour-b').onclick=()=>tourGo(-1);if($('#tour-pics'))$('#tour-pics').onclick=()=>{tourEnd();showGuide();};
+  const el=st.sel&&$(st.sel);if(el){const r=el.getBoundingClientRect();if(r.top<70||r.bottom>innerHeight-200)el.scrollIntoView({block:'center'});}
+  tourPlace();$('#tour-n').focus();},st.before?120:10);}
+function tourPlace(){const T=TOUR;if(!T)return;const st=T.steps[T.i];const el=st.sel&&$(st.sel);const tip=T.tip,hole=T.hole;const W=tip.offsetWidth,H=tip.offsetHeight;
+ if(!el){hole.className='tour-hole none';Object.assign(hole.style,{left:innerWidth/2+'px',top:innerHeight/2+'px',width:'0px',height:'0px'});tip.className='tour-tip center';tip.style.left=Math.max(12,(innerWidth-W)/2)+'px';tip.style.top=Math.max(12,(innerHeight-H)/2)+'px';return;}
+ const r=el.getBoundingClientRect(),pd=6;hole.className='tour-hole';Object.assign(hole.style,{left:r.left-pd+'px',top:r.top-pd+'px',width:r.width+pd*2+'px',height:r.height+pd*2+'px'});
+ const below=r.bottom+pd+18+H<innerHeight||r.top-pd-18-H<0;let left=Math.min(Math.max(12,r.left+r.width/2-W/2),innerWidth-W-12);
+ tip.className='tour-tip '+(below?'below':'above');tip.style.left=left+'px';tip.style.top=(below?r.bottom+pd+16:r.top-pd-16-H)+'px';
+ tip.style.setProperty('--ax',Math.min(Math.max(14,r.left+r.width/2-left-12),W-38)+'px');}
 
 /* ================= UPUTSTVO ZA NASTAVNIKE ================= */
 const GUIDE={
